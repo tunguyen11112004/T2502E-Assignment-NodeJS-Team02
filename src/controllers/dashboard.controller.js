@@ -2,8 +2,7 @@ const dashboardService = require('../services/dashboard.service');
 
 exports.getMyTasks = async (req, res, next) => {
   try {
-    // Thay vì dùng req.user.id (đang lỗi), mình dán trực tiếp ID vào đây
-    const userId = req.user.id;// dùng middleware protect để gán req.user sau khi xác thực JWT thành công
+    const userId = req.user.id || req.user._id;
     const result = await dashboardService.getMyTasks(userId, req.query);
 
     res.status(200).json({
@@ -22,7 +21,7 @@ exports.getMyTasks = async (req, res, next) => {
 
 exports.getOverdueTasks = async (req, res, next) => {
   try {
-    const userId = req.user.id;// dùng middleware protect để gán req.user sau khi xác thực JWT thành công
+    const userId = req.user.id || req.user._id;
     const tasks = await dashboardService.getOverdueTasks(userId);
 
     res.status(200).json({

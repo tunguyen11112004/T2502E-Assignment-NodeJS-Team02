@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboard.controller');
+const { checkUser, verifyToken } = require('../middlewares/auth-middleware');
 
-// Lưu ý: Bạn cần middleware xác thực (JWT) ở đây
-// Giả sử bạn có middleware tên là 'protect'
-// const { protect } = require('../middleware/auth.middleware');
-// router.use(protect);
+// Áp dụng middleware bảo mật cho tất cả các routes dashboard
+router.use(checkUser);
+router.use(verifyToken);
 
 router.get('/my-tasks', dashboardController.getMyTasks);
 router.get('/overdue', dashboardController.getOverdueTasks);

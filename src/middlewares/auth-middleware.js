@@ -1,27 +1,40 @@
 const jwt = require("jsonwebtoken");
 
-// Middleware 1: Chỉ kiểm tra để hiển thị Header (Dùng cho toàn bộ App)
+// Kiểm tra User từ cả Cookie và Header
 exports.checkUser = (req, res, next) => {
-  const token = req.cookies.accessToken;
+  let token = null;
+
+  if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
   if (!token) {
+    req.user = null;
     res.locals.user = null;
     return next();
   }
+
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     req.user = decoded;
-    res.locals.user = decoded; // Giúp file header.ejs luôn có biến user để hiện Avatar
+    res.locals.user = decoded;
     next();
   } catch (error) {
     res.clearCookie("accessToken");
+    req.user = null;
     res.locals.user = null;
     next();
   }
 };
 
-// Middleware 2: Bắt buộc đăng nhập (Dùng cho các trang như Profile, Create Project)
+// Bắt buộc đăng nhập
 exports.verifyToken = (req, res, next) => {
   if (!req.user) {
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      return res.status(401).json({ success: false, message: "Unauthorized: Access denied" });
+    }
     return res.redirect("/auth/login");
   }
   next();

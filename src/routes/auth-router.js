@@ -1,39 +1,22 @@
 const express = require("express");
 const router = express.Router();
-const authController = require("../controllers/auth-controller"); // Đổi tên file controller luôn cho đồng bộ
-const upload = require("../middlewares/upload-middleware");
-const { verifyToken } = require("../middlewares/auth-middleware");
+const authController = require("../controllers/auth-controller");
 
-// Các route cho Register
+// Dòng 6 (Dòng bị lỗi trong ảnh của bạn):
 router.get("/register", authController.renderRegister);
-router.post("/register", authController.handleRegister);
 
-// Các route cho Login
+// Dòng 7:
 router.get("/login", authController.renderLogin);
-router.post("/login", authController.handleLogin);
 
-// Route cho Logout
+// Các dòng xử lý logic
+router.post("/register", authController.handleRegister);
+router.post("/login", authController.handleLogin);
 router.get("/logout", authController.handleLogout);
 
-// Route cho Profile (Có middleware verifyToken để bắt buộc phải đăng nhập mới vào được)
-router.get("/profile", verifyToken, authController.renderProfile);
-
-// Route cập nhật avatar (Dùng upload.single('avatar') để nhận 1 file từ input name="avatar")
-router.post(
-  "/profile/avatar",
-  verifyToken,
-  upload.single("avatar"),
-  authController.handleUpdateAvatar,
-);
-
-// Route đổi mật khẩu
-router.post(
-  "/profile/change-password",
-  verifyToken,
-  authController.handleChangePassword,
-);
-
-// Route cập nhật thông tin cá nhân (fullname)
-router.post("/profile/update", verifyToken, authController.handleUpdateProfile);
+// Các dòng Profile
+router.get("/profile", authController.renderProfile);
+router.post("/update-avatar", authController.handleUpdateAvatar);
+router.post("/change-password", authController.handleChangePassword);
+router.post("/update-profile", authController.handleUpdateProfile);
 
 module.exports = router;
