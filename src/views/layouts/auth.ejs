@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= typeof title !=='undefined' ? title : 'TaskFlow' %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f4f5f7;
+            /* Màu nền xám nhạt giống Trello */
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black text-blue-700 tracking-tighter">TaskFlow</h1>
+        </div>
+
+        <%- body %>
+
+            <div class="text-center mt-8 text-xs text-gray-400 font-medium">
+                <p>&copy; 2026 TaskFlow by Nguyễn Anh Tú</p>
+            </div>
+    </div>
+
+</body>
+
+</html>

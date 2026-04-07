@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Quản lý công việc thông minh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Tùy chỉnh thanh cuộn cho giống Trello */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        .main-content {
+            min-height: calc(100vh - 48px);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans antialiased">
+
+    <%- include('../partials/header') %>
+
+        <div class="flex">
+            <%- include('../partials/sidebar') %>
+
+                <main class="flex-1 lg:ml-64 pt-12 transition-all duration-300">
+                    <div class="p-6 main-content">
+                        <%- body %>
+                    </div>
+
+                    <%- include('../partials/footer') %>
+                </main>
+        </div>
+
+        <script>
+            console.log("TaskFlow Layout Loaded!");
+        </script>
+</body>
+
+</html>
