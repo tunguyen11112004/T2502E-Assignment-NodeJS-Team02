@@ -1,0 +1,70 @@
+<header class="bg-blue-700 h-12 flex items-center justify-between px-4 shadow-md fixed top-0 w-full z-50">
+    <div class="flex items-center space-x-4">
+        <a href="/" class="flex items-center space-x-2 text-white hover:bg-blue-600 px-2 py-1 rounded transition">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                    d="M2 4a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm3 1a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V6a1 1 0 00-1-1H5zm6 0a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1V6a1 1 0 00-1-1h-2z" />
+            </svg>
+            <span class="font-bold text-lg tracking-tight">TaskFlow</span>
+        </a>
+    </div>
+
+    <div class="flex-1 max-w-sm mx-4 hidden md:block">
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-2 flex items-center">
+                <svg class="h-4 w-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </span>
+            <input type="text"
+                class="block w-full bg-blue-600/50 border-none text-white text-sm rounded py-1 pl-8 pr-3 focus:bg-white focus:text-gray-900 focus:ring-0 placeholder-blue-100 transition-all"
+                placeholder="Tìm kiếm...">
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+        <% if (typeof user !=='undefined' && user) { %>
+            <div class="relative" id="userDropdownWrapper">
+                <button onclick="toggleUserMenu()" class="focus:outline-none">
+                    <img class="h-8 w-8 rounded-full border-2 border-blue-400 hover:border-white transition object-cover"
+                        src="<%= user.avatar %>" alt="Avatar">
+                </button>
+                <div id="userMenu"
+                    class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 border border-gray-200 z-50">
+                    <div class="px-4 py-2 border-b border-gray-100">
+                        <p class="text-xs text-gray-500">Đang đăng nhập:</p>
+                        <p class="text-sm font-bold text-gray-800 truncate">
+                            <%= user.fullname %>
+                        </p>
+                    </div>
+                    <a href="/auth/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50">Hồ sơ cá
+                        nhân</a>
+                    <a href="/projects/my-projects" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50">Dự án
+                        của tôi</a>
+                    <hr class="my-1 border-gray-100">
+                    <a href="/auth/logout" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium">Đăng
+                        xuất</a>
+                </div>
+            </div>
+            <% } else { %>
+                <a href="/auth/login" class="text-white text-sm font-medium hover:bg-blue-600 px-3 py-1.5 rounded">Đăng
+                    nhập</a>
+                <a href="/auth/register"
+                    class="bg-white text-blue-700 text-sm font-bold px-3 py-1.5 rounded hover:bg-blue-50 transition">Đăng
+                    ký</a>
+                <% } %>
+    </div>
+</header>
+
+<script>
+    function toggleUserMenu() {
+        document.getElementById('userMenu').classList.toggle('hidden');
+    }
+    // Click outside to close
+    window.addEventListener('click', function (e) {
+        if (!document.getElementById('userDropdownWrapper')?.contains(e.target)) {
+            document.getElementById('userMenu')?.classList.add('hidden');
+        }
+    });
+</script>
