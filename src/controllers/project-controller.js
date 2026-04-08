@@ -1,0 +1,243 @@
+const Project = require("../models/Project");
+
+// Render Home Page
+exports.renderHome = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.redirect("/auth/login");
+    }
+
+    const currentUserId = req.user.id || req.user._id;
+
+    const projects = await Project.find({
+      isDeleted: false,
+      $or: [{ owner: currentUserId }, { members: currentUserId }],
+    })
+      .populate("owner", "fullname email avatar")
+      .populate("members", "fullname email avatar")
+      .sort({ createdAt: -1 });
+
+    return res.render("client/home", {
+      title: "Trang chủ TaskFlow",
+      user: req.user || null,
+      projects,
+      success: req.query.success || null,
+      error: req.query.error || null,
+    });
+  } catch (error) {
+    return res.status(500).send("Lỗi máy chủ");
+  }
+};
+
+// CREATE PROJECT
+// POST /api/projects
+exports.createProject = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const { title, description } = req.body;
+
+    if (!title || !title.trim()) {
+      if (req.headers.accept && req.headers.accept.includes("text/html")) {
+        return res.redirect(
+          "/?error=" + encodeURIComponent("Tiêu đề dự án là bắt buộc"),
+        );
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "Title is required",
+      });
+    }
+
+    await Project.create({
+      title: title.trim(),
+      description: description?.trim() || "",
+      owner: currentUserId,
+      members: [currentUserId],
+    });
+
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect(
+        "/?success=" + encodeURIComponent("Tạo project thành công"),
+      );
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Create project successfully",
+    });
+  } catch (error) {
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect("/?error=" + encodeURIComponent(error.message));
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET PROJECT LIST
+// GET /api/projects
+exports.getProjects = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+
+    const projects = await Project.find({
+      isDeleted: false,
+      $or: [{ owner: currentUserId }, { members: currentUserId }],
+    })
+      .populate("owner", "fullname email avatar")
+      .populate("members", "fullname email avatar")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Get project list successfully",
+      data: projects,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// UPDATE PROJECT
+// PATCH/PUT /api/projects/:id
+exports.updateProject = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const { id } = req.params;
+const { title, description } = req.body;
+
+    const project = await Project.findById(id);
+
+    if (!project || project.isDeleted) {
+      if (req.headers.accept && req.headers.accept.includes("text/html")) {
+        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại"));
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    if (project.owner.toString() !== currentUserId.toString()) {
+      if (req.headers.accept && req.headers.accept.includes("text/html")) {
+        return res.redirect(
+          "/?error=" + encodeURIComponent("Chỉ owner mới được sửa project"),
+        );
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Only owner can update this project",
+      });
+    }
+
+    if (title !== undefined) {
+      if (!title.trim()) {
+        if (req.headers.accept && req.headers.accept.includes("text/html")) {
+          return res.redirect(
+            "/?error=" + encodeURIComponent("Tiêu đề không được để trống"),
+          );
+        }
+
+        return res.status(400).json({
+          success: false,
+          message: "Title cannot be empty",
+        });
+      }
+
+      project.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      project.description = description.trim();
+    }
+
+    await project.save();
+
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect(
+        "/?success=" + encodeURIComponent("Cập nhật project thành công"),
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Project updated successfully",
+      data: project,
+    });
+  } catch (error) {
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect("/?error=" + encodeURIComponent(error.message));
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// SOFT DELETE PROJECT
+// DELETE /api/projects/:id
+exports.deleteProject = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const { id } = req.params;
+
+    const project = await Project.findById(id);
+
+    if (!project || project.isDeleted) {
+      if (req.headers.accept && req.headers.accept.includes("text/html")) {
+        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại"));
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    if (project.owner.toString() !== currentUserId.toString()) {
+      if (req.headers.accept && req.headers.accept.includes("text/html")) {
+        return res.redirect(
+          "/?error=" + encodeURIComponent("Chỉ owner mới được xóa project"),
+        );
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Only owner can delete this project",
+      });
+    }
+project.isDeleted = true;
+    await project.save();
+
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect(
+        "/?success=" + encodeURIComponent("Xóa project thành công"),
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Project deleted successfully",
+    });
+  } catch (error) {
+    if (req.headers.accept && req.headers.accept.includes("text/html")) {
+      return res.redirect("/?error=" + encodeURIComponent(error.message));
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

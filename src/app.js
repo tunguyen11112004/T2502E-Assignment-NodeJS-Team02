@@ -6,9 +6,12 @@ const cookieParser = require("cookie-parser");
 const methodOverride = require("method-override");
 const expressLayouts = require("express-ejs-layouts");
 
-const { errorHandler } = require("./middlewares/errorhandler");
-const authMiddleware = require("./middlewares/auth-middleware");
+const projectRouter = require("./routes/project-router");
 const authRouter = require("./routes/auth-router");
+const projectController = require("./controllers/project-controller");
+
+const { errorHandler } = require("./middlewares/errorHandler");
+const authMiddleware = require("./middlewares/auth-middleware");
 
 const app = express();
 
@@ -29,28 +32,30 @@ if (process.env.NODE_ENV === "development") {
 
 app.use(cors());
 app.use(cookieParser());
-app.use(authMiddleware.checkUser); // Middleware này sẽ chạy trước tất cả routes để kiểm tra user
+
+// middleware đọc user từ cookie
+app.use(authMiddleware.checkUser);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 
-// Cấu hình thư mục tĩnh: Nhảy ra ngoài src để vào public
+// static files
 app.use(express.static(path.join(__dirname, "../public")));
 
 // ==========================================
-// ĐỊNH NGHĨA ROUTES
+// ROUTES
 // ==========================================
 app.use("/auth", authRouter);
 
-app.get("/", (req, res) => {
-  res.render("client/home", {
-    user: req.user || null,
-    title: "Trang chủ TaskFlow",
-  });
-});
+// CRUD Project API
+app.use("/api/projects", projectRouter);
+
+// Home có render list project
+app.get("/", authMiddleware.verifyToken, projectController.renderHome);
 
 // ==========================================
-// XỬ LÝ LỖI
+// ERROR HANDLER
 // ==========================================
 app.use(errorHandler);
 

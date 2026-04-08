@@ -20,9 +20,11 @@ exports.checkUser = (req, res, next) => {
 };
 
 // Middleware 2: Bắt buộc đăng nhập (Dùng cho các trang như Profile, Create Project)
+// Middleware 2: Bắt buộc đăng nhập cho API
 exports.verifyToken = (req, res, next) => {
   if (!req.user) {
-    return res.redirect("/auth/login");
+   
   }
-  next();
+
+  return next();
 };
