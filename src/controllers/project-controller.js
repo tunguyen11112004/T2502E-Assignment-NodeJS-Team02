@@ -1,4 +1,5 @@
 const Project = require("../models/Project");
+const Task = require("../models/Task");
 
 // Render Home Page
 exports.renderHome = async (req, res) => {
@@ -240,4 +241,83 @@ project.isDeleted = true;
       message: error.message,
     });
   }
+};
+
+exports.createTask = async (req, res) => {
+    try {
+        const currentUserId = req.user.id || req.user._id;
+        const { title, description, projectId, deadline, priority } = req.body;
+        // 1. Kiểm tra dự án có tồn tại không
+        const project = await Project.findById(projectId);
+        if (!project || project.isDeleted) {
+            return res.status(404).json({ success: false, message: "Dự án không tồn tại" });
+        }
+        // 2. Logic kiểm tra 2.3: Deadline không được là quá khứ
+        const today = new Date().setHours(0, 0, 0, 0);
+        const selectedDate = new Date(deadline).setHours(0, 0, 0, 0);
+
+        if (selectedDate < today) {
+            if (req.headers.accept && req.headers.accept.includes("text/html")) {
+                return res.redirect("back"); // Hoặc redirect kèm lỗi
+            }
+            return res.status(400).json({ success: false, message: "Deadline không được là ngày quá khứ" });
+        }
+        // 3. Tạo task mới
+        const newTask = new Task({
+            title,
+            description,
+            projectId,
+            deadline,
+            priority: priority || 'Medium',
+            status: 'To Do'
+        });
+        await newTask.save();
+        if (req.headers.accept && req.headers.accept.includes("text/html")) {
+            return res.redirect(`/api/projects/${projectId}/board?success=Tạo task thành công`);
+        }
+        res.status(201).json({ success: true, data: newTask });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// UPDATE TASK STATUS (Phục vụ kéo thả hoặc đổi cột)
+exports.updateTaskStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const task = await Task.findByIdAndUpdate(id, { status }, { new: true });
+        res.json({ success: true, data: task });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// SHOW PROJECT BOARD
+exports.getProjectBoard = async (req, res) => {
+    try {
+        const projectId = req.params.id;
+        // 1. Lấy thông tin dự án
+        const project = await Project.findById(projectId).populate('members', 'fullname avatar');
+        
+        if (!project || project.isDeleted) {
+            return res.redirect("/api/projects?error=Dự án không tồn tại");
+        }
+
+        // 2. Lấy danh sách task của dự án này
+        const tasks = await Task.find({ projectId: projectId });
+
+        // 3. Render giao diện board
+        // CHỈNH SỬA: Gửi biến 'tasks' thay vì 'board' để khớp với code EJS
+        res.render('client/project-board', { 
+            project, 
+            tasks, // Gửi nguyên mảng tasks sang, EJS sẽ tự filter theo status
+            user: req.user,
+            success: req.query.success || null,
+            error: req.query.error || null
+        });
+    } catch (error) {
+        console.error(error);
+        res.redirect("/api/projects?error=" + encodeURIComponent(error.message));
+    }
 };
