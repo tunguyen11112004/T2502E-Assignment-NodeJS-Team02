@@ -13,9 +13,9 @@ const taskController = {
       const taskDeadline = new Date(deadline).setHours(0, 0, 0, 0);
 
       if (taskDeadline < today) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Ngày hết hạn không được nhỏ hơn ngày hiện tại!" 
+        return res.status(400).json({
+          success: false,
+          message: "Ngày hết hạn không được nhỏ hơn ngày hiện tại!",
         });
       }
 
@@ -25,23 +25,27 @@ const taskController = {
         projectId,
         deadline,
         priority: priority || "Medium",
-        status: "ToDo"
+        status: "ToDo",
       });
 
       res.status(201).json({
         success: true,
-        data: newTask
+        data: newTask,
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'loz' + error.message });
+      res.status(500).json({ success: false, message: "loz" + error.message });
     }
   },
 
   // Hàm lấy chi tiết Task
   show: async (req, res) => {
     try {
-      const task = await Task.findById(req.params.id).populate("assignee", "username");
-      if (!task) return res.status(404).json({ message: "Không tìm thấy task" });
+      const task = await Task.findById(req.params.id).populate(
+        "assignee",
+        "username",
+      );
+      if (!task)
+        return res.status(404).json({ message: "Không tìm thấy task" });
       res.json({ success: true, data: task });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -122,12 +126,11 @@ const taskController = {
   createTask: async (req, res) => {
     try {
       const { content, projectId, status } = req.body;
-      const userId = req.user._id || req.user.id;
 
       const newTask = new Task({
         title: content,
         projectId: projectId,
-        status: status ||"ToDo"
+        status: status || "ToDo",
       });
 
       await newTask.save();
@@ -135,6 +138,15 @@ const taskController = {
     } catch (error) {
       console.error("Lỗi Controller:", error);
       res.status(500).send("Lỗi tạo task");
+    }
+  },
+  updateStatus: async (req, res) => {
+    try {
+      const { taskId, newStatus } = req.body;
+      await Task.findByIdAndUpdate(taskId, { status: newStatus });
+      res.status(200).json({ message: "Cập nhật trạng thái thành công" });
+    } catch (error) {
+      res.status(500).json({ message: "Lỗi server", error });
     }
   },
 };

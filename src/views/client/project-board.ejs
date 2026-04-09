@@ -23,7 +23,6 @@
   </div>
 
   <div class="flex gap-6 overflow-x-auto pb-6 items-start">
-    
     <% const columns = [
         { id: 'ToDo', name: 'To Do', color: 'bg-red-500' },
         { id: 'InProgress', name: 'In Progress', color: 'bg-yellow-500' },
@@ -37,14 +36,14 @@
             <div class="w-2 h-6 <%= column.color %> rounded-full"></div>
             <h2 class="font-bold text-gray-700 uppercase text-sm tracking-wider"><%= column.name %></h2>
           </div>
-          <span class="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
+          <span class="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded-full column-count">
             <%= (tasks || []).filter(t => t.status === column.id).length %>
           </span>
         </div>
 
-        <div class="p-2 space-y-3 min-h-[50px]">
+        <div id="<%= column.id %>" class="task-list p-2 space-y-3 min-h-[150px]">
           <% (tasks || []).filter(t => t.status === column.id).forEach(task => { %>
-            <div class="bg-white p-4 rounded-lg shadow-sm border border-transparent hover:border-blue-400 cursor-grab active:cursor-grabbing transition group relative">
+            <div data-id="<%= task._id %>" class="task-item bg-white p-4 rounded-lg shadow-sm border border-transparent hover:border-blue-400 cursor-grab active:cursor-grabbing transition group relative">
               <p class="text-sm text-gray-800 font-medium mb-3"><%= task.title %></p>
               
               <div class="flex justify-between items-center">
@@ -77,7 +76,7 @@
                   <button type="submit" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-blue-700">
                     Thêm thẻ
                   </button>
-                  <button type="reset" class="text-gray-400 hover:text-gray-600 p-1">
+                  <button type="button" onclick="this.closest('details').removeAttribute('open')" class="text-gray-400 hover:text-gray-600 p-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -89,9 +88,51 @@
         </div>
       </div>
     <% }) %>
-
   </div>
 </div>
+
+<style>
+  ::-webkit-scrollbar { height: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .ghost-card { opacity: 0.4; background: #ebf4ff; border: 2px dashed #4299e1; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+  const lists = document.querySelectorAll('.task-list');
+
+  lists.forEach(list => {
+    new Sortable(list, {
+      group: 'kanban',
+      animation: 150,
+      ghostClass: 'ghost-card',
+      onEnd: async function (evt) {
+        const taskId = evt.item.getAttribute('data-id');
+        const newStatus = evt.to.id;
+
+        if (evt.from !== evt.to) {
+          try {
+            const response = await fetch('/api/tasks/update-status', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ taskId, newStatus })
+            });
+            
+            if (!response.ok) throw new Error();
+            
+            // Cập nhật lại số lượng task hiển thị trên header cột (tùy chọn)
+            location.reload(); 
+          } catch (error) {
+            alert('Lỗi cập nhật trạng thái!');
+            location.reload();
+          }
+        }
+      }
+    });
+  });
+</script>
 
 <style>
   /* Ẩn thanh cuộn mặc định để nhìn đẹp hơn */
