@@ -19,4 +19,6 @@ router.put('/:id/content', verifyToken, taskController.updateTaskContent);
 
 router.put('/:id/description', verifyToken, taskController.updateTaskDescription);
 
+router.put('/:id/deadline', verifyToken, taskController.updateDeadline);
+
 module.exports = router;

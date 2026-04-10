@@ -2,17 +2,12 @@ const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema(
   {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: true,
-    },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
-    status: {
-      type: String,
-      enum: ["ToDo", "InProgress", "Done"],
-      default: "To Do",
+    listId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TaskList",
+      required: true,
     },
     priority: {
       type: String,
@@ -28,5 +23,5 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-''
+
 module.exports = mongoose.model("Task", taskSchema);

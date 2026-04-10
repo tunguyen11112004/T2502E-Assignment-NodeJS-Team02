@@ -1,5 +1,7 @@
 const Project = require("../models/Project");
 const Task = require("../models/Task");
+const TaskList = require("../models/TaskList");
+
 
 // Render Home Page
 exports.renderHome = async (req, res) => {
@@ -304,14 +306,18 @@ exports.getProjectBoard = async (req, res) => {
             return res.redirect("/api/projects?error=Dự án không tồn tại");
         }
 
-        // 2. Lấy danh sách task của dự án này
-        const tasks = await Task.find({ projectId: projectId });
+        // 2. Lấy danh sách TaskList của dự án này
+        const taskLists = await TaskList.find({ projectId: projectId });
 
-        // 3. Render giao diện board
-        // CHỈNH SỬA: Gửi biến 'tasks' thay vì 'board' để khớp với code EJS
+        // 3. Lấy danh sách task của các list này
+        const listIds = taskLists.map(tl => tl._id);
+        const tasks = await Task.find({ listId: { $in: listIds } }).populate("listId", "title").populate("assignee", "fullname");
+
+        // 4. Render giao diện board
         res.render('client/project-board', { 
             project, 
-            tasks, // Gửi nguyên mảng tasks sang, EJS sẽ tự filter theo status
+            taskLists,
+            tasks, // Gửi nguyên mảng tasks
             user: req.user,
             success: req.query.success || null,
             error: req.query.error || null

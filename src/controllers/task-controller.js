@@ -1,4 +1,5 @@
 const Task = require("../models/Task");
+const TaskList = require("../models/TaskList");
 const Project = require("../models/Project"); // Cần import Project model để kiểm tra projectId
 
 // Sử dụng module.exports dạng object để giống các Controller khác của nhóm
@@ -19,13 +20,18 @@ const taskController = {
         });
       }
 
+      // Tìm hoặc tạo TaskList có title "ToDo" cho project
+      let todoList = await TaskList.findOne({ title: "ToDo", projectId });
+      if (!todoList) {
+        todoList = await TaskList.create({ title: "ToDo", projectId });
+      }
+
       const newTask = await Task.create({
         title,
         description,
-        projectId,
         deadline,
         priority: priority || "Medium",
-        status: "ToDo",
+        listId: todoList._id,
       });
 
       res.status(201).json({
@@ -43,7 +49,7 @@ const taskController = {
       const task = await Task.findById(req.params.id).populate(
         "assignee",
         "username",
-      );
+      ).populate("listId", "title");
       if (!task)
         return res.status(404).json({ message: "Không tìm thấy task" });
       res.json({ success: true, data: task });
@@ -71,7 +77,10 @@ const taskController = {
       const isOverdue = overdue === "true";
 
       if (status) {
-        query.status = status;
+        const taskList = await TaskList.findOne({ title: status });
+        if (taskList) {
+          query.listId = taskList._id;
+        }
       }
 
       if (priority) {
@@ -100,14 +109,16 @@ const taskController = {
           $lt: new Date(),
         };
         if (!status) {
-          query.status = {
-            $ne: "Done",
-          };
+          const doneList = await TaskList.findOne({ title: "Done" });
+          if (doneList) {
+            query.listId = { $ne: doneList._id };
+          }
         }
       }
 
       const tasks = await Task.find(query)
         .populate("assignee", "fullname email avatar")
+        .populate("listId", "title")
         .sort({ deadline: 1, createdAt: -1 });
       return res.status(200).json({
         success: true,
@@ -125,10 +136,14 @@ const taskController = {
   createTask: async (req, res) => {
     try {
       const { content, projectId, status } = req.body;
+      // Tìm hoặc tạo TaskList với title = status, projectId
+      let taskList = await TaskList.findOne({ title: status, projectId });
+      if (!taskList) {
+        taskList = await TaskList.create({ title: status, projectId });
+      }
       const newTask = new Task({
         title: content,
-        projectId: projectId,
-        status: status || "ToDo",
+        listId: taskList._id,
       });
       await newTask.save();
       return res.redirect(`/api/projects/${projectId}/board`);
@@ -140,7 +155,18 @@ const taskController = {
   updateStatus: async (req, res) => {
     try {
       const { taskId, newStatus } = req.body;
-      await Task.findByIdAndUpdate(taskId, { status: newStatus });
+      // Lấy task để biết projectId từ listId
+      const task = await Task.findById(taskId).populate('listId');
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      const projectId = task.listId.projectId;
+      // Tìm hoặc tạo TaskList với title = newStatus, projectId
+      let taskList = await TaskList.findOne({ title: newStatus, projectId });
+      if (!taskList) {
+        taskList = await TaskList.create({ title: newStatus, projectId });
+      }
+      await Task.findByIdAndUpdate(taskId, { listId: taskList._id });
       res.status(200).json({ message: "Cập nhật trạng thái thành công" });
     } catch (error) {
       res.status(500).json({ message: "Lỗi server", error });
@@ -157,7 +183,7 @@ const taskController = {
   },
   getTaskDetail: async (req, res) => {
     try {
-        const task = await Task.findById(req.params.id);
+        const task = await Task.findById(req.params.id).populate("listId", "title");
         res.status(200).json(task);
     } catch (error) {
         res.status(500).json({ message: "Không tìm thấy task" });
@@ -178,6 +204,33 @@ const taskController = {
         const { id } = req.params;
         const { description } = req.body;
         await Task.findByIdAndUpdate(id, { description: description });
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false });
+    }
+  },
+  updateDeadline: async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { deadline } = req.body;
+        const task = await Task.findById(id);
+        if (!task) {
+          return res.status(404).json({ success: false, message: "Task không tồn tại" });
+        }
+        const selectedDeadline = new Date(deadline);
+        if (isNaN(selectedDeadline.getTime())) {
+          return res.status(400).json({ success: false, message: "Ngày không hợp lệ" });
+        }
+        const minCreatedAt = new Date(task.createdAt);
+        minCreatedAt.setHours(0, 0, 0, 0);
+        selectedDeadline.setHours(0, 0, 0, 0);
+        if (selectedDeadline < minCreatedAt) {
+          return res.status(400).json({
+            success: false,
+            message: "Ngày hết hạn không được trước ngày tạo task",
+          });
+        }
+        await Task.findByIdAndUpdate(id, { deadline: selectedDeadline });
         res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false });
