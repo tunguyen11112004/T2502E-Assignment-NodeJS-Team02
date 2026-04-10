@@ -191,12 +191,24 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 <script>
   let currentEditingTaskId = null;
   let currentTask = null;
+  let descriptionEditor = null;
   const modal = document.getElementById('taskModal');
   const titleInput = document.getElementById('modalTaskTitle');
   const descTextarea = document.getElementById('modalTaskDesc');
+
+  ClassicEditor.create(descTextarea, {
+    toolbar: ['bold', 'italic', 'link', 'bulletedList', 'numberedList', 'undo', 'redo']
+  })
+  .then(editor => {
+    descriptionEditor = editor;
+  })
+  .catch(error => {
+    console.error('CKEditor init error:', error);
+  });
 
   // KÉO THẢ (DRAG & DROP)
   const lists = document.querySelectorAll('.task-list');
@@ -229,8 +241,12 @@
       currentTask = task;
 
       titleInput.value = task.title;
-      descTextarea.value = task.description || ""; 
-      document.getElementById('txtDesc').innerText = task.description || "Thêm mô tả chi tiết hơn...";
+      if (descriptionEditor) {
+        descriptionEditor.setData(task.description || "");
+      } else {
+        descTextarea.value = task.description || "";
+      }
+      document.getElementById('txtDesc').innerHTML = task.description || "Thêm mô tả chi tiết hơn...";
       
       document.getElementById('modalColumnName').innerText = task.listId ? task.listId.title : 'Unknown';
       
@@ -286,7 +302,7 @@
   }
 
   async function saveDescription() {
-    const newDesc = descTextarea.value;
+    const newDesc = descriptionEditor ? descriptionEditor.getData() : descTextarea.value;
     try {
       const response = await fetch(`/api/tasks/${currentEditingTaskId}/description`, {
         method: 'PUT',
@@ -294,7 +310,7 @@
         body: JSON.stringify({ description: newDesc }) // Gửi field 'description' khớp Controller
       });
       if (response.ok) {
-        document.getElementById('txtDesc').innerText = newDesc || "Thêm mô tả chi tiết hơn...";
+        document.getElementById('txtDesc').innerHTML = newDesc || "Thêm mô tả chi tiết hơn...";
         hideEditDesc();
       }
     } catch (e) { alert('Lỗi lưu mô tả'); }
