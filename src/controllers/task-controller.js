@@ -155,6 +155,34 @@ const taskController = {
         res.status(500).json({ success: false });
     }
   },
+  getTaskDetail: async (req, res) => {
+    try {
+        const task = await Task.findById(req.params.id);
+        res.status(200).json(task);
+    } catch (error) {
+        res.status(500).json({ message: "Không tìm thấy task" });
+    }
+  },
+  updateTaskContent: async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title } = req.body;
+        await Task.findByIdAndUpdate(id, { title }); // Giả sử 'title' là trường chứa nội dung chính
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false });
+    }
+  },
+  updateTaskDescription: async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { description } = req.body;
+        await Task.findByIdAndUpdate(id, { description: description });
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false });
+    }
+  },
 };
 
 module.exports = taskController;

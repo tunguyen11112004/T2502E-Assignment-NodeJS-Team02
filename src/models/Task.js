@@ -8,7 +8,7 @@ const taskSchema = new mongoose.Schema(
       required: true,
     },
     title: { type: String, required: true, trim: true },
-    description: { type: String },
+    description: { type: String, default: "" },
     status: {
       type: String,
       enum: ["ToDo", "InProgress", "Done"],
@@ -28,5 +28,5 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-
+''
 module.exports = mongoose.model("Task", taskSchema);

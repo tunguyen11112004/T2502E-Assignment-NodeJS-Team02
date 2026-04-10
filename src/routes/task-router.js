@@ -13,4 +13,10 @@ router.get('/my-tasks', verifyToken, taskController.getMyTasks);
 
 router.delete('/:id', verifyToken, taskController.deleteTask);
 
+router.get('/:id', verifyToken, taskController.getTaskDetail);
+
+router.put('/:id/content', verifyToken, taskController.updateTaskContent);
+
+router.put('/:id/description', verifyToken, taskController.updateTaskDescription);
+
 module.exports = router;
