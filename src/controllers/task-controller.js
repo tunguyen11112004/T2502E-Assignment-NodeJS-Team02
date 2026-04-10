@@ -109,7 +109,6 @@ const taskController = {
       const tasks = await Task.find(query)
         .populate("assignee", "fullname email avatar")
         .sort({ deadline: 1, createdAt: -1 });
-
       return res.status(200).json({
         success: true,
         message: "Get my tasks successfully",
@@ -126,13 +125,11 @@ const taskController = {
   createTask: async (req, res) => {
     try {
       const { content, projectId, status } = req.body;
-
       const newTask = new Task({
         title: content,
         projectId: projectId,
         status: status || "ToDo",
       });
-
       await newTask.save();
       return res.redirect(`/api/projects/${projectId}/board`);
     } catch (error) {
@@ -147,6 +144,15 @@ const taskController = {
       res.status(200).json({ message: "Cập nhật trạng thái thành công" });
     } catch (error) {
       res.status(500).json({ message: "Lỗi server", error });
+    }
+  },
+  deleteTask: async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Task.findByIdAndDelete(id);
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false });
     }
   },
 };

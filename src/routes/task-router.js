@@ -11,4 +11,6 @@ router.put('/update-status', verifyToken, taskController.updateStatus);
 
 router.get('/my-tasks', verifyToken, taskController.getMyTasks);
 
+router.delete('/:id', verifyToken, taskController.deleteTask);
+
 module.exports = router;
