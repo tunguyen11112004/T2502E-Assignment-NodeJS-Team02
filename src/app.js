@@ -8,6 +8,7 @@ const expressLayouts = require("express-ejs-layouts");
 
 const projectRouter = require("./routes/project-router");
 const authRouter = require("./routes/auth-router");
+const taskRouter = require("./routes/task-router");
 const projectController = require("./controllers/project-controller");
 const taskRouter = require("./routes/task-router");
 const taskListRouter = require("./routes/tasklist-router");
@@ -56,6 +57,7 @@ app.use("/api/projects", projectRouter);
 app.use("/api/tasks", taskRouter);
 // CRUD TaskList API
 app.use("/api/tasklists", taskListRouter);
+
 
 // Home có render list project
 app.get("/", authMiddleware.verifyToken, projectController.renderHome);

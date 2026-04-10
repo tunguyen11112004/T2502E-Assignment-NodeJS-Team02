@@ -67,10 +67,44 @@
             </span>
           <% } %>
         </div>
-
         <p class="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[40px]">
           <%= project.description || "Chưa có mô tả cho dự án này." %>
         </p>
+      
+       <% if (isOwner) { %>
+  <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+    Owner
+  </span>
+<% } else { %>
+  <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+    Member
+  </span>
+<% } %>
+</div>
+
+<!-- 👉 INVITE MEMBER (CHỈ OWNER THẤY) -->
+<% if (isOwner) { %>
+  <form
+    action="/api/projects/<%= project._id %>/invite"
+    method="POST"
+    class="mb-3 flex gap-2"
+  >
+    <input
+      type="email"
+      name="email"
+      placeholder="Nhập email để mời..."
+      required
+      class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:outline-none"
+    />
+
+    <button
+      type="submit"
+      class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm shadow"
+    >
+      Mời
+    </button>
+  </form>
+<% } %>
 
         <div class="flex items-center justify-between text-xs text-gray-400 mb-4 border-b border-gray-50 pb-3">
           <span class="flex items-center gap-1">👥 <%= project.members?.length || 0 %> thành viên</span>
