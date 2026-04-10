@@ -139,7 +139,7 @@
                       <textarea id="modalTaskDesc" class="w-full p-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none min-h-[150px] text-sm text-gray-800 transition shadow-inner" placeholder="Thêm mô tả chi tiết hơn..."></textarea>
                       <div class="flex items-center gap-2">
                           <button onclick="saveDescription()" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition shadow">Lưu</button>
-                          <button onclick="toggleEditDesc()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded transition">Hủy</button>
+                          <button onclick="cancelEditDesc()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded transition">Hủy</button>
                       </div>
                   </div>
               </div>
@@ -299,6 +299,14 @@
   function hideEditDesc() {
     document.getElementById('descView').classList.remove('hidden');
     document.getElementById('descEdit').classList.add('hidden');
+  }
+  function cancelEditDesc() {
+    if (descriptionEditor) {
+      descriptionEditor.setData(currentTask.description || "");
+    } else {
+      descTextarea.value = currentTask.description || "";
+    }
+    hideEditDesc();
   }
 
   async function saveDescription() {
