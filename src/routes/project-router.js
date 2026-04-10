@@ -23,7 +23,7 @@ router.get("/", verifyToken, projectController.getProjects);
 // UPDATE - only owner
 router.patch("/:id", verifyToken, isOwner, projectController.updateProject);
 router.put("/:id", verifyToken, isOwner, projectController.updateProject);
-
+router.get('/:id/board', verifyToken, projectController.getProjectBoard);
 // SOFT DELETE - only owner
 router.delete("/:id", verifyToken, isOwner, projectController.deleteProject);
 
