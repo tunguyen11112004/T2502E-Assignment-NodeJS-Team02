@@ -1,4 +1,5 @@
 const Project = require("../models/Project");
+const User = require("../models/User");
 
 // Render Home Page
 exports.renderHome = async (req, res) => {
@@ -235,6 +236,69 @@ project.isDeleted = true;
       return res.redirect("/?error=" + encodeURIComponent(error.message));
     }
 
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// INVITE MEMBER
+// POST /api/projects/:id/invite
+exports.inviteMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+    const currentUserId = req.user.id || req.user._id;
+
+    const project = await Project.findById(id);
+
+    if (!project || project.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // chỉ owner được mời
+    if (project.owner.toString() !== currentUserId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only owner can invite",
+      });
+    }
+
+    // tìm user theo email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // tránh add trùng
+    const alreadyMember = project.members.some(
+      (m) => m.toString() === user._id.toString()
+    );
+
+    if (alreadyMember) {
+      return res.status(400).json({
+        success: false,
+        message: "User already in project",
+      });
+    }
+
+    project.members.push(user._id);
+    await project.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Invite successfully",
+    });
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: error.message,

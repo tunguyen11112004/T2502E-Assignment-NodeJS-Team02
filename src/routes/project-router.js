@@ -5,6 +5,7 @@ const projectController = require("../controllers/project-controller");
 const { verifyToken } = require("../middlewares/auth-middleware");
 const { isOwner } = require("../middlewares/auth");
 
+
 // Render form create project
 router.get("/new", verifyToken, (req, res) => {
   res.render("client/create-project", {
@@ -25,5 +26,7 @@ router.put("/:id", verifyToken, isOwner, projectController.updateProject);
 
 // SOFT DELETE - only owner
 router.delete("/:id", verifyToken, isOwner, projectController.deleteProject);
+
+router.post("/:id/invite", verifyToken, isOwner, projectController.inviteMember);
 
 module.exports = router;
