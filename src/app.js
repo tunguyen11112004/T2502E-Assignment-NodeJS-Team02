@@ -10,7 +10,6 @@ const projectRouter = require("./routes/project-router");
 const authRouter = require("./routes/auth-router");
 const taskRouter = require("./routes/task-router");
 const projectController = require("./controllers/project-controller");
-const taskRouter = require("./routes/task-router");
 const taskListRouter = require("./routes/tasklist-router");
 
 const { errorHandler } = require("./middlewares/errorHandler");
