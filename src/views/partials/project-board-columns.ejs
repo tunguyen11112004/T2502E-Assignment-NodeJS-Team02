@@ -1,0 +1,82 @@
+<div class="max-w-7xl mx-auto">
+  <div class="flex gap-6 overflow-x-auto pb-6 items-start">
+    <% const colors = ['bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500']; %>
+
+    <% taskLists.forEach((column, index) => { %>
+      <div class="w-80 flex-shrink-0 bg-gray-200 rounded-xl shadow-sm border border-gray-300 flex flex-col max-h-[80vh]">
+        <div class="p-4 flex justify-between items-center flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-6 <%= colors[index % colors.length] %> rounded-full"></div>
+            <h2 class="font-bold text-gray-700 uppercase text-sm tracking-wider"><%= column.title %></h2>
+          </div>
+        </div>
+
+        <div id="<%= column.title %>" class="task-list p-2 space-y-3 overflow-y-auto flex-grow min-h-[50px]">
+          <% (tasks || []).filter(t => t.listId && t.listId._id.toString() === column._id.toString()).forEach(task => { %>
+            <div
+              data-id="<%= task._id %>"
+              onclick="openTaskDetail('<%= task._id %>')"
+              class="task-item bg-white p-4 rounded-lg shadow border border-transparent hover:border-blue-400 cursor-grab active:cursor-grabbing transition group relative"
+            >
+              <button
+                onclick="event.stopPropagation(); deleteTask('<%= task._id %>')"
+                class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition p-1 rounded-full hover:bg-red-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+
+              <p class="task-title text-sm text-gray-800 font-medium mb-1 pr-6"><%= task.title %></p>
+
+              <% if (task.deadline) { %>
+                <p class="text-xs text-gray-500">Ngày hết hạn: <%= new Date(task.deadline).toLocaleDateString('vi-VN') %></p>
+              <% } %>
+
+              <p class="text-xs text-gray-500"><%= new Date(task.createdAt).toLocaleDateString('vi-VN') %></p>
+            </div>
+          <% }) %>
+        </div>
+
+        <div class="p-2 border-t border-gray-300">
+          <details class="group">
+            <summary class="list-none cursor-pointer p-2 text-gray-600 hover:bg-gray-300 rounded-lg flex items-center gap-2 transition text-sm font-bold font-sans">
+              <span class="text-xl">+</span> Thêm một thẻ
+            </summary>
+
+            <div class="mt-2 bg-white p-3 rounded-xl shadow-lg border border-blue-200 text-left">
+              <form action="/api/tasks/create" method="POST" class="space-y-3">
+                <input type="hidden" name="projectId" value="<%= project._id %>">
+                <input type="hidden" name="status" value="<%= column.title %>">
+
+                <textarea
+                  name="content"
+                  required
+                  placeholder="Nhập tiêu đề cho thẻ này..."
+                  class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] shadow-inner"
+                ></textarea>
+
+                <div class="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs hover:bg-blue-700 transition"
+                  >
+                    Thêm thẻ
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick="this.closest('details').open = false"
+                    class="text-gray-500 hover:text-gray-800 transition p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </form>
+            </div>
+          </details>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</div>

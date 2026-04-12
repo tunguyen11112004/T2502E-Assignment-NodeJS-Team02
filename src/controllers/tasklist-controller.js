@@ -1,30 +1,40 @@
 const TaskList = require("../models/TaskList");
 
-// Sử dụng module.exports dạng object để giống các Controller khác của nhóm
 const taskListController = {
-  // Hàm tạo TaskList mới
   create: async (req, res) => {
     try {
       const { projectId, title } = req.body;
 
       if (!projectId || !title || !title.trim()) {
-        return res.status(400).json({
-          success: false,
-          message: "ProjectId and title are required",
-        });
+        return res.redirect(
+          `/api/projects/${projectId}/board?error=${encodeURIComponent("ProjectId và title là bắt buộc")}`
+        );
       }
 
-      const newTaskList = await TaskList.create({
+      const existed = await TaskList.findOne({
+        projectId,
+        title: title.trim(),
+      });
+
+      if (existed) {
+        return res.redirect(
+          `/api/projects/${projectId}/board?error=${encodeURIComponent("Danh sách đã tồn tại")}`
+        );
+      }
+
+      await TaskList.create({
         title: title.trim(),
         projectId,
       });
 
-      res.status(201).json({
-        success: true,
-        data: newTaskList,
-      });
+      return res.redirect(
+        `/api/projects/${projectId}/board?success=${encodeURIComponent("Tạo danh sách thành công")}`
+      );
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      const fallbackProjectId = req.body && req.body.projectId ? req.body.projectId : "";
+      return res.redirect(
+        `/api/projects/${fallbackProjectId}/board?error=${encodeURIComponent(error.message)}`
+      );
     }
   },
 };
