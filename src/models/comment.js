@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema(
   {
-    taskId: {
+    task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
       required: true,
     },
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
