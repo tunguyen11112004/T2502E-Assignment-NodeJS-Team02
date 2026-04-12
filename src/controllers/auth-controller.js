@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const authService = require("../services/auth-service");
 const jwtHelper = require("../utils/jwt-helper");
 
@@ -13,20 +14,29 @@ exports.renderRegister = async (req, res) => {
 // Xử lý logic đăng ký
 exports.handleRegister = async (req, res) => {
   try {
-    const user = await authService.register({
-      fullname: req.body.fullname,
-      email: req.body.email,
-      password: req.body.password,
+    // 1. Lấy thêm confirmPassword từ body
+    const { fullname, email, password, confirmPassword } = req.body;
+
+    // 2. Logic kiểm tra khớp mật khẩu (Security Check)
+    if (password !== confirmPassword) {
+      throw new Error("Mật khẩu nhập lại không khớp. Vui lòng kiểm tra lại!");
+    }
+
+    // 3. Nếu khớp mới gọi Service để tạo User
+    await authService.register({
+      fullname,
+      email,
+      password,
     });
 
-    // Chuyển hướng về trang Login sau khi tạo thành công giống cách bạn chuyển về list buddy
-    res.redirect("/auth/login?message=Đăng ký tài khoản thành công");
+    res.redirect("/auth/login?status=success&message=Đăng ký tài khoản thành công");
   } catch (error) {
-    // Nếu lỗi, render lại trang đăng ký và hiển thị thông báo lỗi
     res.render("client/register", {
       layout: "layouts/auth",
       title: "Đăng ký TaskFlow",
       error: error.message,
+      // Gửi lại dữ liệu cũ để User không phải nhập lại từ đầu (trừ password)
+      oldData: req.body 
     });
   }
 };
@@ -47,7 +57,7 @@ exports.handleLogin = async (req, res) => {
     const { user, accessToken } = await authService.login(email, password);
 
     // Lưu Access Token vào Cookie (HTTP-only để tăng cường bảo mật, không cho JavaScript truy cập)
-    jwtHelper.updateSession(res, user);
+    await jwtHelper.updateSession(res, user);
 
     // Đăng nhập xong thì về trang chủ
     res.redirect("/");
@@ -62,9 +72,27 @@ exports.handleLogin = async (req, res) => {
 };
 
 // Xử lý logic đăng xuất
-exports.handleLogout = (req, res) => {
-  res.clearCookie("accessToken");
-  res.redirect("/auth/login");
+exports.handleLogout = async (req, res) => {
+    try {
+        const { refreshToken } = req.cookies;
+
+        if (refreshToken) {
+            // Giải mã để lấy ID user mà không cần verify (vì có thể token hết hạn rồi)
+            const decoded = jwt.decode(refreshToken);
+            if (decoded && decoded.id) {
+                // XÓA TRONG DB: Đây là bước quan trọng nhất để vô hiệu hóa hoàn toàn
+                await User.findByIdAndUpdate(decoded.id, { refreshToken: "" });
+            }
+        }
+
+        // Xóa sạch Cookies ở trình duyệt
+        res.clearCookie('accessToken');
+        res.clearCookie('refreshToken', { path: '/auth/refresh-token' });
+
+        return res.redirect('/auth/login?message=Đã đăng xuất thành công');
+    } catch (error) {
+        res.redirect('/auth/login');
+    }
 };
 
 // Hiển thị trang Profile (Dùng cho route /profile, có verifyToken ở middleware để bắt buộc phải đăng nhập mới vào được)
@@ -91,7 +119,7 @@ exports.handleUpdateAvatar = async (req, res) => {
     const user = await authService.updateAvatar(req.user.id, avatarPath);
 
     // Ghi đè cookie mới để cập nhật avatar hiển thị ở header
-    jwtHelper.updateSession(res, user);
+    await jwtHelper.updateSession(res, user);
 
     res.redirect(
       "/auth/profile?status=success&message=Cập nhật ảnh thành công",
@@ -130,7 +158,7 @@ exports.handleUpdateProfile = async (req, res) => {
     const user = await authService.updateProfile(req.user.id, { fullname });
 
     // Ghi đè cookie mới
-    jwtHelper.updateSession(res, user);
+    await jwtHelper.updateSession(res, user);
 
     res.redirect(
       "/auth/profile?status=success&message=Cập nhật tên thành công",
@@ -140,4 +168,28 @@ exports.handleUpdateProfile = async (req, res) => {
       "/auth/profile?status=error&message=" + encodeURIComponent(error.message),
     );
   }
+};
+
+exports.handleRefreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) throw new Error("Phiên đăng nhập hết hạn");
+
+        // 1. Kiểm tra Token có hợp lệ không
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+        // 2. Kiểm tra Token có khớp với Token trong Database không (Bảo mật cao)
+        const user = await User.findById(decoded.id);
+        if (!user || user.refreshToken !== refreshToken) {
+            throw new Error("Token không hợp lệ hoặc đã bị thu hồi");
+        }
+
+        // 3. Nếu mọi thứ OK, cấp Access Token mới
+        await jwtHelper.updateSession(res, user);
+
+        res.json({ status: 'success', message: 'Đã gia hạn phiên làm việc' });
+    } catch (error) {
+      	// Nếu Refresh Token cũng lỗi -> Bắt login lại
+        res.status(401).redirect('/auth/login?message=Vui lòng đăng nhập lại');
+    }
 };
