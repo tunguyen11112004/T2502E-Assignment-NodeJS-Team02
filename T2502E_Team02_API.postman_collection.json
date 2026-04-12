@@ -1,0 +1,424 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "T2502E Team02 API",
+    "description": "Collection theo mã nguồn `src/routes`, `src/controllers`, `src/models`.\n\n**Biến:** `baseUrl` = `http://localhost:3000/api` (đổi port nếu `PORT` trong `.env` khác; mặc định code dùng 5000).\n`rootUrl` = host gốc cho `/auth/*`.\n`token` = JWT (dùng cho Bearer). **Lưu ý:** middleware `checkUser` đọc JWT từ **cookie** `accessToken`. Nếu Bearer chưa được backend xử lý, thêm header thủ công: `Cookie: accessToken={{token}}` hoặc đăng nhập bằng browser rồi copy cookie vào Postman.\n\n**Login:** `POST /auth/login` hiện trả redirect + cookie, không trả JSON `token`. Script Tests vẫn lưu `token` nếu sau này API trả `{ \"token\": \"...\" }`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "rootUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "projectId", "value": "PROJECT_OBJECT_ID" },
+    { "key": "taskId", "value": "TASK_OBJECT_ID" },
+    { "key": "commentId", "value": "COMMENT_OBJECT_ID" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (POST)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text", "disabled": true }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "fullname", "value": "Nguyen Van A", "type": "text" },
+                { "key": "email", "value": "user@example.com", "type": "text" },
+                { "key": "password", "value": "password123", "type": "text" }
+              ]
+            },
+            "url": "{{rootUrl}}/auth/register",
+            "description": "Đăng ký theo `authService.register`: `fullname`, `email`, `password` (form/urlencoded). Controller thường redirect sang login (HTML); bật `Accept: application/json` chỉ khi sau này có nhánh JSON."
+          }
+        },
+        {
+          "name": "Login (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.environment.set(\"token\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "user@example.com", "type": "text" },
+                { "key": "password", "value": "password123", "type": "text" }
+              ]
+            },
+            "url": "{{rootUrl}}/auth/login",
+            "description": "Đăng nhập: `email`, `password`. Hiện tại `handleLogin` set cookie `accessToken` và redirect `/` (không có JSON `token`). Script Tests giữ đúng spec; với response HTML có thể báo lỗi parse JSON — bỏ qua hoặc bổ sung API login JSON sau."
+          }
+        },
+        {
+          "name": "Logout (GET)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{rootUrl}}/auth/logout",
+            "description": "Xóa cookie `accessToken`, redirect về `/auth/login`."
+          }
+        },
+        {
+          "name": "Register page (GET)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{rootUrl}}/auth/register",
+            "description": "Trả HTML form đăng ký (EJS)."
+          }
+        },
+        {
+          "name": "Login page (GET)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{rootUrl}}/auth/login",
+            "description": "Trả HTML form đăng nhập (EJS)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Profile (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{rootUrl}}/auth/profile",
+            "description": "Trang profile (HTML) — cần `req.user` từ cookie JWT (`verifyToken` + cookie)."
+          }
+        },
+        {
+          "name": "Update avatar (POST multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "File ảnh — field name bắt buộc `avatar` (`upload.single('avatar')`)."
+                }
+              ]
+            },
+            "url": "{{rootUrl}}/auth/profile/avatar",
+            "description": "Upload avatar; lưu path `/uploads/avatars/...`, cập nhật cookie session."
+          }
+        },
+        {
+          "name": "Change password (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "oldPassword", "value": "oldpass123", "type": "text" },
+                { "key": "newPassword", "value": "newpass123", "type": "text" },
+                { "key": "confirmPassword", "value": "newpass123", "type": "text" }
+              ]
+            },
+            "url": "{{rootUrl}}/auth/profile/change-password",
+            "description": "`newPassword` phải khớp `confirmPassword`."
+          }
+        },
+        {
+          "name": "Update profile fullname (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [{ "key": "fullname", "value": "Ten Moi", "type": "text" }]
+            },
+            "url": "{{rootUrl}}/auth/profile/update",
+            "description": "Cập nhật `fullname` (schema User)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Create project (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Du an mau\",\n  \"description\": \"Mo ta ngan\"\n}"
+            },
+            "url": "{{baseUrl}}/projects",
+            "description": "Tạo project: `title` (bắt buộc), `description` (optional). Owner = `req.user`, `members` gồm owner. JSON khi không gửi `Accept: text/html`."
+          }
+        },
+        {
+          "name": "List my projects (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects",
+            "description": "Danh sách project user là owner hoặc member, `isDeleted: false`, có populate owner/members."
+          }
+        },
+        {
+          "name": "Update project (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Ten cap nhat\",\n  \"description\": \"Mo ta moi\"\n}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}",
+            "description": "Chỉ owner (`isOwner`). Cập nhật một phần: `title`, `description`."
+          }
+        },
+        {
+          "name": "Update project (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Ten cap nhat\",\n  \"description\": \"Mo ta moi\"\n}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}",
+            "description": "Cùng handler `updateProject` với PATCH."
+          }
+        },
+        {
+          "name": "Project board (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}/board",
+            "description": "Render board HTML: project, taskLists, tasks (populate listId, assignee)."
+          }
+        },
+        {
+          "name": "Soft delete project (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/projects/{{projectId}}",
+            "description": "Chỉ owner: `isDeleted = true`."
+          }
+        },
+        {
+          "name": "Invite member by email (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"member@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/projects/{{projectId}}/invite",
+            "description": "Owner mời user theo `email`; không trùng member."
+          }
+        },
+        {
+          "name": "New project form (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/projects/new",
+            "description": "HTML form tạo project (`client/create-project`)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create task (POST /create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Noi dung task / tieu de hien thi\",\n  \"projectId\": \"{{projectId}}\",\n  \"status\": \"ToDo\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/create",
+            "description": "`taskController.createTask`: `content` → `title` task, `projectId`, `status` = title TaskList (vd ToDo, Done). Tạo TaskList nếu chưa có; có thể redirect board nếu Accept HTML."
+          }
+        },
+        {
+          "name": "Update task status (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskId\": \"{{taskId}}\",\n  \"newStatus\": \"Done\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/update-status",
+            "description": "Kéo thả / đổi cột: `taskId`, `newStatus` (tên TaskList). Lấy `projectId` từ task.listId."
+          }
+        },
+        {
+          "name": "My tasks (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tasks/my-tasks?search=&status=&priority=&overdue=",
+            "description": "Task được giao cho `req.user` (`assignee`), `isDeleted: false`. Query params: `search` (regex title/description), `status` (title TaskList, vd Done), `priority` (Low|Medium|High), `overdue=true` (deadline < now, loại Done)."
+          }
+        },
+        {
+          "name": "Task detail (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tasks/{{taskId}}",
+            "description": "`getTaskDetail`: populate `listId.title`."
+          }
+        },
+        {
+          "name": "Delete task (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/tasks/{{taskId}}",
+            "description": "`findByIdAndDelete` cứng."
+          }
+        },
+        {
+          "name": "Update task content / title (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Tieu de task cap nhat\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/{{taskId}}/content",
+            "description": "Cập nhật trường `title` (schema Task)."
+          }
+        },
+        {
+          "name": "Update task description (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Mo ta chi tiet\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/{{taskId}}/description",
+            "description": "Cập nhật `description`."
+          }
+        },
+        {
+          "name": "Update task deadline (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deadline\": \"2026-12-31T00:00:00.000Z\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/{{taskId}}/deadline",
+            "description": "Deadline không được trước ngày tạo task (so sánh theo ngày)."
+          }
+        },
+        {
+          "name": "Create TaskList (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"title\": \"In Progress\"\n}"
+            },
+            "url": "{{baseUrl}}/tasklists/create",
+            "description": "Route `tasklist-router`: `projectId`, `title` (bắt buộc, trim). Model TaskList."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Add comment on task (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Binh luan mau\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks/{{taskId}}/comments",
+            "description": "Tạo Comment: `content`, user = `req.user.id`. Task → project; user phải member hoặc owner project. Trả comment populate `user` (fullname, avatar)."
+          }
+        },
+        {
+          "name": "List comments by task (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/tasks/{{taskId}}/comments",
+            "description": "Danh sách comment theo `task`, sort `createdAt` tăng dần, populate user."
+          }
+        },
+        {
+          "name": "Update comment (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Noi dung da sua\"\n}"
+            },
+            "url": "{{baseUrl}}/comments/{{commentId}}",
+            "description": "Chỉ tác giả và vẫn còn quyền trong project (member hoặc owner)."
+          }
+        },
+        {
+          "name": "Delete comment (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/comments/{{commentId}}",
+            "description": "Owner project xóa mọi comment; tác giả xóa nếu vẫn là member. `findByIdAndDelete`."
+          }
+        }
+      ]
+    }
+  ]
+}
