@@ -20,7 +20,19 @@ router.post(
 router.get(
   "/:taskId/comments",
   verifyToken,
-  commentController.list,
+  commentController.list
+);
+
+router.put(
+  "/:taskId/comments/:commentId",
+  verifyToken,
+  commentController.updateComment
+);
+
+router.delete(
+  "/:taskId/comments/:commentId",
+  verifyToken,
+  commentController.deleteComment
 );
 
 router.delete('/:id', verifyToken, taskController.deleteTask);

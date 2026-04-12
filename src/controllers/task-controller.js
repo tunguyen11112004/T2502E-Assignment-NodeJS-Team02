@@ -1,6 +1,7 @@
 const Task = require("../models/Task");
 const TaskList = require("../models/TaskList");
 const Project = require("../models/Project"); // Cần import Project model để kiểm tra projectId
+const Comment = require("../models/comment");
 
 // Sử dụng module.exports dạng object để giống các Controller khác của nhóm
 const taskController = {
@@ -234,6 +235,31 @@ const taskController = {
         res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false });
+    }
+  },
+  getComments: async (req, res) => {
+    try {
+      const taskId = req.params.id;
+      const comments = await Comment.find({ taskId }).populate("userId", "fullname avatar").sort({ createdAt: 1 });
+      res.status(200).json({ success: true, data: comments });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+  createComment: async (req, res) => {
+    try {
+      const taskId = req.params.id;
+      const content = req.body.content;
+      const userId = req.user.id || req.user._id;
+      const newComment = new Comment({
+        taskId,
+        userId,
+        content
+      });
+      await newComment.save();
+      res.status(200).json({ success: true, data: newComment });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
     }
   },
 };

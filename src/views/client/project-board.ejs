@@ -157,6 +157,8 @@
                           </div>
                       </div>
                   </div>
+                  <!-- Danh sách bình luận hiển thị ở đây -->
+                  <div id="commentsList" class="space-y-4 mt-6"></div>
               </div>
           </div>
 
@@ -193,6 +195,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 <script>
+  const currentUserId = '<%= user ? (user._id || user.id) : "" %>';
+  const projectOwnerId = '<%= project ? (project.owner._id || project.owner) : "" %>';
+
   let currentEditingTaskId = null;
   let currentTask = null;
   let descriptionEditor = null;
@@ -264,7 +269,132 @@
       }
       
       modal.classList.remove('hidden');
-    } catch (e) { alert('Lỗi lấy chi tiết task'); }
+      await loadComments(taskId);
+    } catch (e) {
+      alert('Lỗi lấy chi tiết task');
+    }
+  }
+
+  async function loadComments(taskId) {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/comments`);
+      const isOk = response.ok;
+      if (isOk) {
+        const result = await response.json();
+        const comments = result.data || result;
+        const hasComments = comments && comments.length > 0;
+        const commentsList = document.getElementById('commentsList');
+        commentsList.innerHTML = '';
+        if (hasComments) {
+          comments.forEach(comment => {
+            const user = comment.user || comment.userId || {};
+            const name = user.fullname || 'Unknown';
+            const avatar = user.avatar || `https://ui-avatars.com/api/?name=${name}`;
+            const date = new Date(comment.createdAt).toLocaleString('vi-VN');
+            
+            const commentUserId = user._id || user.id || '';
+            const isAuthor = currentUserId === commentUserId;
+            const isProjectOwner = currentUserId === projectOwnerId;
+            const canEdit = isAuthor;
+            const canDelete = isAuthor || isProjectOwner;
+
+            let editBtnHtml = '';
+            if (canEdit) {
+              editBtnHtml = `<button onclick="editComment('${comment._id}')" class="text-xs text-blue-500 font-semibold hover:underline">Sửa</button>`;
+            }
+
+            let deleteBtnHtml = '';
+            if (canDelete) {
+              deleteBtnHtml = `<button onclick="deleteComment('${comment._id}')" class="text-xs text-red-500 font-semibold hover:underline">Xóa</button>`;
+            }
+
+            const html = `
+              <div class="flex gap-4 items-start w-full">
+                <img src="${avatar}" class="w-9 h-9 rounded-full flex-shrink-0" title="${name}">
+                <div class="w-full flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="font-bold text-sm text-gray-900 truncate">${name}</span>
+                    <span class="text-xs text-gray-500 flex-shrink-0">${date}</span>
+                  </div>
+                  
+                  <div id="comment-view-${comment._id}" class="group relative">
+                    <div class="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-800 shadow-sm whitespace-pre-wrap break-words">${comment.content}</div>
+                    <div class="flex gap-3 mt-1 opacity-0 group-hover:opacity-100 transition absolute top-2 right-2 bg-white/90 p-1 rounded backdrop-blur border border-gray-100 shadow-sm">
+                      ${editBtnHtml}
+                      ${deleteBtnHtml}
+                    </div>
+                  </div>
+
+                  <div id="comment-edit-${comment._id}" class="hidden mt-1 bg-white border border-blue-400 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-300 transition-all shadow-sm">
+                    <textarea id="textarea-${comment._id}" class="w-full p-3 text-sm outline-none resize-none min-h-[60px] bg-transparent">${comment.content}</textarea>
+                    <div class="px-3 pb-2 flex justify-end gap-2">
+                      <button onclick="cancelEditComment('${comment._id}')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded transition">Hủy</button>
+                      <button onclick="saveEditComment('${comment._id}')" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded transition shadow">Lưu</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+            commentsList.insertAdjacentHTML('beforeend', html);
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi tải bình luận', e);
+    }
+  }
+
+  function editComment(commentId) {
+    document.getElementById(`comment-view-${commentId}`).classList.add('hidden');
+    document.getElementById(`comment-edit-${commentId}`).classList.remove('hidden');
+    document.getElementById(`textarea-${commentId}`).focus();
+  }
+
+  function cancelEditComment(commentId) {
+    document.getElementById(`comment-view-${commentId}`).classList.remove('hidden');
+    document.getElementById(`comment-edit-${commentId}`).classList.add('hidden');
+  }
+
+  async function saveEditComment(commentId) {
+    const textarea = document.getElementById(`textarea-${commentId}`);
+    const content = textarea.value.trim();
+    const hasContent = content.length > 0;
+    if (hasContent) {
+      try {
+        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments/${commentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const isOk = response.ok;
+        if (isOk) {
+          await loadComments(currentEditingTaskId);
+        } else {
+          alert('Lỗi sửa bình luận');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  async function deleteComment(commentId) {
+    const isConfirm = confirm('Bạn có chắc muốn xóa bình luận này?');
+    if (isConfirm) {
+      try {
+        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments/${commentId}`, {
+          method: 'DELETE'
+        });
+        const isOk = response.ok;
+        if (isOk) {
+          await loadComments(currentEditingTaskId);
+        } else {
+          alert('Lỗi xóa bình luận');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   function closeModal() {
@@ -341,7 +471,8 @@
   // UI Comment
   document.getElementById('txtComment').addEventListener('input', e => {
     const btn = document.getElementById('btnComment');
-    if (e.target.value.trim().length > 0) {
+    const hasValue = e.target.value.trim().length > 0;
+    if (hasValue) {
         btn.disabled = false;
         btn.classList.add('bg-blue-600', 'text-white');
         btn.classList.remove('cursor-not-allowed');
@@ -349,6 +480,34 @@
         btn.disabled = true;
         btn.classList.remove('bg-blue-600', 'text-white');
         btn.classList.add('cursor-not-allowed');
+    }
+  });
+
+  document.getElementById('btnComment').addEventListener('click', async () => {
+    const txtArea = document.getElementById('txtComment');
+    const content = txtArea.value.trim();
+    const hasContent = content.length > 0;
+    if (hasContent) {
+      try {
+        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ content })
+        });
+        const isOk = response.ok;
+        if (isOk) {
+          txtArea.value = '';
+          const btn = document.getElementById('btnComment');
+          btn.disabled = true;
+          btn.classList.remove('bg-blue-600', 'text-white');
+          btn.classList.add('cursor-not-allowed');
+          await loadComments(currentEditingTaskId);
+        }
+      } catch (e) {
+        console.error('Lỗi thêm bình luận', e);
+      }
     }
   });
 
@@ -431,8 +590,8 @@
   }
 </script>
 
+<!-- Ẩn thanh cuộn mặc định để nhìn đẹp hơn -->
 <style>
-  /* Ẩn thanh cuộn mặc định để nhìn đẹp hơn */
   ::-webkit-scrollbar {
     height: 8px;
   }

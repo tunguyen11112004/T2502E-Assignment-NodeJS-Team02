@@ -104,176 +104,67 @@ const commentController = {
     }
   },
 
-  update: async (req, res) => {
+  updateComment: async (req, res) => {
     try {
       const { commentId } = req.params;
       const { content } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
-      }
+      const userId = req.user.id || req.user._id;
 
       const comment = await Comment.findById(commentId);
-
       if (!comment) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy bình luận",
-        });
+        return res.status(404).json({ success: false, message: "Không tìm thấy bình luận" });
       }
 
       const isAuthor = comment.user.toString() === userId.toString();
-
       if (!isAuthor) {
-        return res.status(403).json({
-          success: false,
-          message: "Bạn không có quyền sửa bình luận này",
-        });
-      }
-
-      const task = await Task.findById(comment.task).populate({
-        path: "listId",
-        select: "projectId",
-      });
-
-      if (!task) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy task",
-        });
-      }
-
-      const hasProjectContext =
-        task.listId && task.listId.projectId;
-      if (!hasProjectContext) {
-        return res.status(404).json({
-          success: false,
-          message: "Task không còn task list hợp lệ",
-        });
-      }
-
-      const project = await Project.findById(task.listId.projectId);
-
-      if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy project",
-        });
-      }
-
-      const userIdStr = userId.toString();
-      const isMember = project.members.some(
-        (memberId) => memberId.toString() === userIdStr,
-      );
-      const isProjectOwner = project.owner.toString() === userIdStr;
-      const canEditInProject = isMember || isProjectOwner;
-
-      if (!canEditInProject) {
-        return res.status(403).json({
-          success: false,
-          message: "Bạn không còn quyền trong project này",
-        });
+        return res.status(403).json({ success: false, message: "Không có quyền sửa" });
       }
 
       comment.content = content;
       await comment.save();
 
-      return res.status(200).json({
-        success: true,
-        data: comment,
-      });
+      return res.status(200).json({ success: true, data: comment });
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
 
-  remove: async (req, res) => {
+  deleteComment: async (req, res) => {
     try {
       const { commentId } = req.params;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
-      }
+      const userId = req.user.id || req.user._id;
 
       const comment = await Comment.findById(commentId);
-
       if (!comment) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy bình luận",
-        });
+        return res.status(404).json({ success: false, message: "Không tìm thấy bình luận" });
       }
 
       const task = await Task.findById(comment.task).populate({
         path: "listId",
         select: "projectId",
       });
-
       if (!task) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy task",
-        });
-      }
-
-      const hasProjectContext =
-        task.listId && task.listId.projectId;
-      if (!hasProjectContext) {
-        return res.status(404).json({
-          success: false,
-          message: "Task không còn task list hợp lệ",
-        });
+        return res.status(404).json({ success: false, message: "Không tìm thấy task" });
       }
 
       const project = await Project.findById(task.listId.projectId);
-
       if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy project",
-        });
+        return res.status(404).json({ success: false, message: "Không tìm thấy project" });
       }
 
-      const userIdStr = userId.toString();
-      const isAuthor = comment.user.toString() === userIdStr;
-      const isMember = project.members.some(
-        (memberId) => memberId.toString() === userIdStr,
-      );
-      const isProjectOwner = project.owner.toString() === userIdStr;
-      const canDelete =
-        isProjectOwner || (isAuthor && isMember);
+      const isAuthor = comment.user.toString() === userId.toString();
+      const isProjectOwner = project.owner.toString() === userId.toString();
+      const canDelete = isAuthor || isProjectOwner;
 
       if (!canDelete) {
-        return res.status(403).json({
-          success: false,
-          message: isAuthor
-            ? "Bạn không còn quyền trong project này"
-            : "Bạn không có quyền xóa bình luận này",
-        });
+        return res.status(403).json({ success: false, message: "Không có quyền xóa" });
       }
 
       await Comment.findByIdAndDelete(commentId);
 
-      return res.status(200).json({
-        success: true,
-        message: "Đã xóa bình luận",
-      });
+      return res.status(200).json({ success: true, message: "Đã xóa bình luận" });
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
 };
