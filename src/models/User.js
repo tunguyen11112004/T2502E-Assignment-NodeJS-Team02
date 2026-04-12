@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema(
       default: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
     },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    // THÊM TRƯỜNG NÀY ĐỂ LƯU REFRESH TOKEN
+    refreshToken: { type: String, default: "" }, 
   },
   { timestamps: true },
 );
