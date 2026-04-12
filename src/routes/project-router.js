@@ -14,6 +14,8 @@ router.get("/new", verifyToken, (req, res) => {
   });
 });
 
+router.patch("/:id/members/:memberId/role", verifyToken, isOwner, projectController.updateMemberRole);
+
 // CREATE
 router.post("/", verifyToken, projectController.createProject);
 

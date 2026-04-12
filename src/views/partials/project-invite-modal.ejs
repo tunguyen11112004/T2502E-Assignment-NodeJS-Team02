@@ -1,0 +1,79 @@
+<div
+  id="inviteModal"
+  class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4"
+  onclick="if(event.target === this) closeInviteModal()"
+>
+  <div class="w-full max-w-3xl rounded-2xl bg-[#1f1f24] text-white shadow-2xl p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-3xl font-medium">Chia sẻ bảng</h2>
+      <button type="button" onclick="closeInviteModal()" class="text-white/70 hover:text-white text-3xl leading-none">×</button>
+    </div>
+
+    <% if (isOwner) { %>
+      <form id="inviteMemberForm" class="flex gap-3 mb-6">
+        <input
+          type="email"
+          name="email"
+          placeholder="Địa chỉ email"
+          required
+          class="flex-1 bg-transparent border border-[#4b5563] rounded-lg px-4 py-3 outline-none focus:border-blue-500"
+        >
+        <div class="px-4 py-3 rounded-lg border border-[#4b5563] text-gray-200 min-w-[150px]">
+          Thành viên
+        </div>
+        <button type="submit" class="bg-blue-500 hover:bg-blue-600 px-5 py-3 rounded-lg font-semibold">
+          Chia sẻ
+        </button>
+      </form>
+    <% } %>
+
+    <div class="border-b border-white/10 mb-4">
+      <button class="text-blue-400 border-b-2 border-blue-400 pb-3">
+        Thành viên của bảng thông tin
+        <span class="ml-1 inline-flex min-w-6 h-6 items-center justify-center rounded bg-white/10 text-sm px-2">
+          <%= project.members ? project.members.length : 0 %>
+        </span>
+      </button>
+    </div>
+
+    <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+      <% (project.members || []).forEach(memberItem => { %>
+        <% const member = memberItem && memberItem.user ? memberItem.user : memberItem; %>
+        <% const memberRole = memberItem && memberItem.role ? memberItem.role : (String(member._id) === ownerId ? 'owner' : 'member'); %>
+
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <img
+              src="<%= member.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(member.fullname || 'User')) %>"
+              class="w-10 h-10 rounded-full object-cover"
+            >
+            <div class="min-w-0">
+              <p class="text-base font-medium truncate">
+                <%= member.fullname %>
+                <% if (String(member._id) === currentUserId) { %>
+                  <span class="text-gray-400">(bạn)</span>
+                <% } %>
+              </p>
+              <p class="text-sm text-gray-400 truncate"><%= member.email || '' %></p>
+            </div>
+          </div>
+
+          <% if (isOwner && String(member._id) !== currentUserId) { %>
+            <select
+              onchange="updateMemberRole('<%= member._id %>', this.value)"
+              class="member-role-select bg-transparent border border-[#4b5563] rounded-lg px-3 py-2 text-sm text-white"
+            >
+<option value="owner" <%= memberRole === 'owner' ? 'selected' : '' %>>Owner</option>
+              <option value="member" <%= memberRole === 'member' ? 'selected' : '' %>>Member</option>
+              <option value="delete">Delete from project</option>
+            </select>
+          <% } else { %>
+            <div class="px-3 py-2 rounded-lg border border-[#4b5563] text-sm text-gray-300">
+              <%= memberRole === 'owner' ? 'Owner' : 'Member' %>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+<div
+  id="datePickerModal"
+  class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
+  onclick="if(event.target === this) closeDatePicker()"
+>
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+    <h3 class="text-lg font-bold text-gray-900 mb-4">Chọn ngày hết hạn</h3>
+    <p id="currentDeadlineText" class="text-sm text-gray-600 mb-3 hidden"></p>
+    <input type="date" id="dateInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+
+    <div class="flex items-center gap-2 mt-4">
+      <button type="button" onclick="saveDeadline()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition">Lưu</button>
+      <button type="button" onclick="closeDatePicker()" class="text-gray-500 hover:text-gray-800 transition px-4 py-2">Hủy</button>
+    </div>
+  </div>
+</div>

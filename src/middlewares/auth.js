@@ -25,7 +25,7 @@ exports.isMember = async (req, res, next) => {
 
     const isMember =
       project.owner.toString() === currentUserId.toString() ||
-      project.members.some((m) => m.toString() === currentUserId.toString());
+      project.members.some((m) => m.user.toString() === currentUserId.toString());
 
     if (!isMember) {
       return res.status(403).json({
