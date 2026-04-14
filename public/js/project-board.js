@@ -381,6 +381,14 @@ function hideEditDesc() {
   if (descEdit) descEdit.classList.add("hidden");
 }
 
+function toLocalDateInputString(date) {
+  const localDate = new Date(date);
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, "0");
+  const day = String(localDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function cancelEditDesc() {
   const originalDesc = currentTask && currentTask.description ? currentTask.description : "";
 
@@ -469,13 +477,13 @@ function openDatePicker() {
   if (!dateInput || !picker) return;
 
   if (currentTask) {
-    const createdAt = new Date(currentTask.createdAt);
-    const minDate = createdAt.toISOString().split("T")[0];
+    const today = new Date();
+    const minDate = toLocalDateInputString(today);
     dateInput.min = minDate;
 
     if (currentTask.deadline) {
       const date = new Date(currentTask.deadline);
-      dateInput.value = date.toISOString().split("T")[0];
+      dateInput.value = toLocalDateInputString(date);
 
       if (currentDeadlineText) {
         currentDeadlineText.textContent = "Hiện tại: " + date.toLocaleDateString("vi-VN");

@@ -253,8 +253,10 @@ exports.createTask = async (req, res) => {
             return res.status(404).json({ success: false, message: "Dự án không tồn tại" });
         }
         // 2. Logic kiểm tra 2.3: Deadline không được là quá khứ
-        const today = new Date().setHours(0, 0, 0, 0);
-        const selectedDate = new Date(deadline).setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(deadline);
+        selectedDate.setHours(0, 0, 0, 0);
 
         if (selectedDate < today) {
             if (req.headers.accept && req.headers.accept.includes("text/html")) {

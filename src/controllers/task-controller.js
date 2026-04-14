@@ -259,13 +259,13 @@ const taskController = {
         if (isNaN(selectedDeadline.getTime())) {
           return res.status(400).json({ success: false, message: "Ngày không hợp lệ" });
         }
-        const minCreatedAt = new Date(task.createdAt);
-        minCreatedAt.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         selectedDeadline.setHours(0, 0, 0, 0);
-        if (selectedDeadline < minCreatedAt) {
+        if (selectedDeadline < today) {
           return res.status(400).json({
             success: false,
-            message: "Ngày hết hạn không được trước ngày tạo task",
+            message: "Ngày hết hạn không được trước ngày hiện tại",
           });
         }
         await Task.findByIdAndUpdate(id, { deadline: selectedDeadline });
