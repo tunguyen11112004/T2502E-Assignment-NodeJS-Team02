@@ -15,10 +15,10 @@ exports.renderHome = async (req, res) => {
 
     const projects = await Project.find({
       isDeleted: false,
-      $or: [{ owner: currentUserId }, { members: currentUserId }],
+      $or: [{ owner: currentUserId }, { "members.user": currentUserId }],
     })
       .populate("owner", "fullname email avatar")
-      .populate("members", "fullname email avatar")
+      .populate("members.user", "fullname email avatar")
       .sort({ createdAt: -1 });
 
     return res.render("client/home", {
@@ -57,7 +57,7 @@ exports.createProject = async (req, res) => {
       title: title.trim(),
       description: description?.trim() || "",
       owner: currentUserId,
-      members: [currentUserId],
+      members: [{ user: currentUserId, role: "owner" }],
     });
 
     if (req.headers.accept && req.headers.accept.includes("text/html")) {
@@ -90,10 +90,10 @@ exports.getProjects = async (req, res) => {
 
     const projects = await Project.find({
       isDeleted: false,
-      $or: [{ owner: currentUserId }, { members: currentUserId }],
+      $or: [{ owner: currentUserId }, { "members.user": currentUserId }],
     })
       .populate("owner", "fullname email avatar")
-      .populate("members", "fullname email avatar")
+      .populate("members.user", "fullname email avatar")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -196,38 +196,34 @@ exports.deleteProject = async (req, res) => {
     const currentUserId = req.user.id || req.user._id;
     const { id } = req.params;
 
-    const project = await Project.findById(id);
+    const updatedProject = await Project.findOneAndUpdate(
+      {
+        _id: id,
+        owner: currentUserId,
+        isDeleted: false,
+      },
+      {
+        $set: { isDeleted: true },
+      },
+      {
+        new: true,
+        runValidators: false,
+      }
+    );
 
-    if (!project || project.isDeleted) {
+    if (!updatedProject) {
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
-        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại"));
+        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại hoặc bạn không có quyền xóa"));
       }
 
       return res.status(404).json({
         success: false,
-        message: "Project not found",
+        message: "Project not found or you do not have permission",
       });
     }
-
-    if (project.owner.toString() !== currentUserId.toString()) {
-      if (req.headers.accept && req.headers.accept.includes("text/html")) {
-        return res.redirect(
-          "/?error=" + encodeURIComponent("Chỉ owner mới được xóa project"),
-        );
-      }
-
-      return res.status(403).json({
-        success: false,
-        message: "Only owner can delete this project",
-      });
-    }
-project.isDeleted = true;
-    await project.save();
 
     if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect(
-        "/?success=" + encodeURIComponent("Xóa project thành công"),
-      );
+      return res.redirect("/?success=" + encodeURIComponent("Xóa project thành công"));
     }
 
     return res.status(200).json({
@@ -302,10 +298,12 @@ exports.getProjectBoard = async (req, res) => {
     try {
         const projectId = req.params.id;
         // 1. Lấy thông tin dự án
-        const project = await Project.findById(projectId).populate('members', 'fullname avatar');
+        const project = await Project.findById(projectId)
+                .populate("owner", "fullname email avatar")
+                .populate("members.user", "fullname email avatar");
         
         if (!project || project.isDeleted) {
-            return res.redirect("/api/projects?error=Dự án không tồn tại");
+              return res.redirect("/?error=" + encodeURIComponent("Dự án không tồn tại"));
         }
 
         // 2. Lấy danh sách TaskList của dự án này
@@ -326,7 +324,7 @@ exports.getProjectBoard = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.redirect("/api/projects?error=" + encodeURIComponent(error.message));
+        return res.redirect("/?error=" + encodeURIComponent(error.message));
     }
 };
 //nhánh main (duy)
@@ -366,9 +364,9 @@ exports.inviteMember = async (req, res) => {
     }
 
     // tránh add trùng
-    const alreadyMember = project.members.some(
-      (m) => m.toString() === user._id.toString()
-    );
+    const alreadyMember =
+  project.owner.toString() === user._id.toString() ||
+  project.members.some((m) => m.user.toString() === user._id.toString());
 
     if (alreadyMember) {
       return res.status(400).json({
@@ -377,12 +375,98 @@ exports.inviteMember = async (req, res) => {
       });
     }
 
-    project.members.push(user._id);
+    project.members.push({
+            user: user._id,
+            role: "member",
+     });
     await project.save();
 
     return res.status(200).json({
       success: true,
       message: "Invite successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+exports.updateMemberRole = async (req, res) => {
+  try {
+    const { id, memberId } = req.params;
+    const { role } = req.body;
+    const currentUserId = req.user.id || req.user._id;
+
+    const project = await Project.findById(id);
+
+    if (!project || project.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    if (project.owner.toString() !== currentUserId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only owner can manage members",
+      });
+    }
+
+    const targetMember = project.members.find(
+      (m) => m.user.toString() === memberId.toString()
+    );
+
+    if (!targetMember) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found in project",
+      });
+    }
+
+    if (role === "delete") {
+      if (project.owner.toString() === memberId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Không thể xóa owner khỏi project",
+        });
+      }
+
+      project.members = project.members.filter(
+        (m) => m.user.toString() !== memberId.toString()
+      );
+    } else if (role === "owner") {
+      project.owner = memberId;
+
+      project.members.forEach((m) => {
+        if (m.user.toString() === memberId.toString()) {
+          m.role = "owner";
+        } else {
+          m.role = "member";
+        }
+      });
+    } else if (role === "member") {
+      if (project.owner.toString() === memberId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Owner hiện tại không thể hạ xuống member ở đây. Hãy chuyển owner cho người khác trước.",
+        });
+      }
+
+      targetMember.role = "member";
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Role không hợp lệ",
+      });
+    }
+
+    await project.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật quyền thành công",
     });
   } catch (error) {
     return res.status(500).json({

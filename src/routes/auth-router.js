@@ -36,4 +36,7 @@ router.post(
 // Route cập nhật thông tin cá nhân (fullname)
 router.post("/profile/update", verifyToken, authController.handleUpdateProfile);
 
+// Route refresh token
+router.get('/refresh-token', authController.handleRefreshToken);
+
 module.exports = router;

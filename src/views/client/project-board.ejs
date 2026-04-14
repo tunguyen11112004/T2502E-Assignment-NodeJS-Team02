@@ -1,281 +1,118 @@
-<div class="min-h-screen bg-gray-100 p-6">
-  <div class="max-w-7xl mx-auto mb-8 flex justify-between items-center">
-    <div>
-      <nav class="flex text-sm text-gray-500 mb-2">
-        <a href="/api/projects" class="hover:text-blue-600">Dự án</a>
-        <span class="mx-2">/</span>
-        <span class="text-gray-800 font-medium"><%= project.title %></span>
-      </nav>
-      <h1 class="text-3xl font-extrabold text-gray-900"><%= project.title %></h1>
-    </div>
-    
-    <div class="flex items-center gap-3">
-      <div class="flex -space-x-2">
-        <% (project.members || []).forEach(member => { %>
-          <img src="<%= member.avatar || 'https://ui-avatars.com/api/?name=' + member.fullname %>" 
-               class="h-8 w-8 rounded-full border-2 border-white" title="<%= member.fullname %>">
-        <% }) %>
-      </div>
-      <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
-        Mời thành viên
-      </button>
-      <details class="relative">
-        <summary class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md cursor-pointer">
-          Thêm danh sách khác
-        </summary>
-        <div class="absolute top-full mt-2 right-0 bg-white p-4 rounded-lg shadow-lg border border-gray-200 z-10 min-w-[250px]">
-          <form id="addListForm" class="space-y-3">
-            <input type="hidden" name="projectId" value="<%= project._id %>">
-            <input type="text" name="title" required placeholder="Tên danh sách..." 
-              class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 shadow-inner">
-            <div class="flex items-center gap-2">
-              <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs hover:bg-blue-700 transition">Lưu</button>
-              <button type="button" onclick="this.closest('details').open = false" class="text-gray-500 hover:text-gray-800 transition p-1">
-                Hủy
-              </button>
-            </div>
-          </form>
-        </div>
-      </details>
-    </div>
-  </div>
 
-  <div class="flex gap-6 overflow-x-auto pb-6 items-start">
-    <% const colors = ['bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500']; %>
-    <% taskLists.forEach((column, index) => { %>
-      <div class="w-80 flex-shrink-0 bg-gray-200 rounded-xl shadow-sm border border-gray-300 flex flex-col max-h-[80vh]">
-        <div class="p-4 flex justify-between items-center flex-shrink-0">
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-6 <%= colors[index % colors.length] %> rounded-full"></div>
-            <h2 class="font-bold text-gray-700 uppercase text-sm tracking-wider"><%= column.title %></h2>
-          </div>
-        </div>
+<%
+  const currentUserId = String(user && user.id ? user.id : (user && user._id ? user._id : ""));
+  const ownerId = String(project && project.owner && project.owner._id ? project.owner._id : project.owner);
+  const isOwner = currentUserId === ownerId;
+%>
 
-        <div id="<%= column.title %>" class="task-list p-2 space-y-3 overflow-y-auto flex-grow min-h-[50px]">
-          <% (tasks || []).filter(t => t.listId && t.listId._id.toString() === column._id.toString()).forEach(task => { %>
-            <div data-id="<%= task._id %>" 
-                 onclick="openTaskDetail('<%= task._id %>')"
-                 class="task-item bg-white p-4 rounded-lg shadow border border-transparent hover:border-blue-400 cursor-grab active:cursor-grabbing transition group relative">
-              
-              <button onclick="event.stopPropagation(); deleteTask('<%= task._id %>')" 
-                      class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition p-1 rounded-full hover:bg-red-50">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-
-              <p class="text-sm text-gray-800 font-medium mb-1 pr-6"><%= task.title %></p>
-              <% if (task.deadline) { %>
-                <p class="text-xs text-gray-500">Ngày hết hạn: <%= new Date(task.deadline).toLocaleDateString('vi-VN') %></p>
-              <% } %>
-              <p class="text-xs text-gray-500"><%= new Date(task.createdAt).toLocaleDateString('vi-VN') %></p>
-            </div>
-          <% }) %>
-        </div>
-
-        <div class="p-2 border-t border-gray-300">
-
-          <details class="group">
-            <summary class="list-none cursor-pointer p-2 text-gray-600 hover:bg-gray-300 rounded-lg flex items-center gap-2 transition text-sm font-bold font-sans">
-              <span class="text-xl">+</span> Thêm một thẻ
-            </summary>
-            <div class="mt-2 bg-white p-3 rounded-xl shadow-lg border border-blue-200 text-left">
-              <form action="/api/tasks/create" method="POST" class="space-y-3">
-                <input type="hidden" name="projectId" value="<%= project._id %>">
-                <input type="hidden" name="status" value="<%= column.title %>">
-                <textarea name="content" required placeholder="Nhập tiêu đề cho thẻ này..." 
-                  class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] shadow-inner"></textarea>
-                <div class="flex items-center gap-2">
-                  <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs hover:bg-blue-700 transition">Thêm thẻ</button>
-                  <button type="button" onclick="this.closest('details').open = false" class="text-gray-500 hover:text-gray-800 transition p-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </details>
-        </div>
-      </div>
-    <% }) %>
-  </div>
+<div
+  id="projectBoardPage"
+  data-project-id="<%= project._id %>"
+  data-is-owner="<%= isOwner %>"
+  data-current-user-id="<%= currentUserId %>"
+  data-owner-id="<%= ownerId %>"
+  class="min-h-screen bg-gray-100 p-6"
+>
+  <%- include('../partials/project-board-header', { project, user, isOwner }) %>
+  <%- include('../partials/project-board-columns', { project, taskLists, tasks, isOwner }) %>
 </div>
 
-<div id="taskModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target === this) closeModal()">
-  <div class="bg-[#F4F5F7] rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all border border-gray-100 max-h-[90vh] flex flex-col text-left">
-      
-      <div class="p-6 pb-2 flex justify-between items-start">
-        <div class="flex gap-4 items-start w-full">
-            <svg class="w-6 h-6 text-gray-600 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-            <div class="w-full">
-                <input type="text" id="modalTaskTitle" class="w-full text-2xl font-bold text-gray-900 bg-transparent p-1 -ml-1 rounded hover:bg-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" value="Loading...">
-                <p class="text-sm text-gray-600 mt-1">trong danh sách <span id="modalColumnName" class="font-medium text-gray-700 underline">...</span></p>
-                <p id="modalDeadlineText" class="text-sm text-gray-600 mt-1 hidden"></p>
-            </div>
-        </div>
-        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 transition p-2 hover:bg-gray-200 rounded-full flex-shrink-0 -mt-2 -mr-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
+<%- include('../partials/project-invite-modal', { project, user, isOwner, currentUserId, ownerId }) %>
+<%- include('../partials/task-detail-modal') %>
+<%- include('../partials/date-picker-modal') %>
 
-      <div class="p-6 flex-grow overflow-y-auto grid grid-cols-1 md:grid-cols-[1fr,240px] gap-8">
-          <div class="space-y-8">
-              <div class="flex flex-wrap gap-2 pt-1">
-                  <button class="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium transition"><span class="text-lg">+</span> Thêm</button>
-                  <button class="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> Nhãn</button>
-                  <button id="btnDate" class="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span id="btnDateText">Ngày</span></button>
-              </div>
 
-              <div class="space-y-3">
-                  <div class="flex justify-between items-center">
-                      <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg> Mô tả
-                      </h3>
-                      <button id="btnEditDesc" class="text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded transition">Sửa</button>
-                  </div>
-                  <div id="descView" class="p-4 bg-gray-200 rounded-lg hover:bg-gray-300 cursor-pointer min-h-[80px] transition" onclick="toggleEditDesc()">
-                      <p id="txtDesc" class="text-sm text-gray-700">Thêm mô tả chi tiết hơn...</p>
-                  </div>
-                  <div id="descEdit" class="hidden space-y-3">
-                      <textarea id="modalTaskDesc" class="w-full p-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none min-h-[150px] text-sm text-gray-800 transition shadow-inner" placeholder="Thêm mô tả chi tiết hơn..."></textarea>
-                      <div class="flex items-center gap-2">
-                          <button onclick="saveDescription()" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition shadow">Lưu</button>
-                          <button onclick="cancelEditDesc()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded transition">Hủy</button>
-                      </div>
-                  </div>
-              </div>
-
-              <div class="space-y-4">
-                  <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-2">
-                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg> Hoạt động & Bình luận
-                  </h3>
-                  <div class="flex gap-4 items-start pt-2">
-                      <img src="https://ui-avatars.com/api/?name=Admin" class="w-9 h-9 rounded-full flex-shrink-0">
-                      <div class="w-full bg-white border border-gray-200 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-blue-300 transition-all overflow-hidden">
-                          <textarea id="txtComment" class="w-full p-3 bg-transparent text-sm outline-none resize-none" placeholder="Viết bình luận..." rows="1"></textarea>
-                          <div class="px-3 pb-2 flex justify-end">
-                            <button id="btnComment" class="px-3 py-1 text-xs font-bold text-gray-500 bg-gray-100 rounded transition cursor-not-allowed" disabled>Bình luận</button>
-                          </div>
-                      </div>
-                  </div>
-                  <!-- Danh sách bình luận hiển thị ở đây -->
-                  <div id="commentsList" class="space-y-4 mt-6"></div>
-              </div>
-          </div>
-
-          <div class="hidden md:block space-y-4 pt-1">
-              <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Hành động</h4>
-              <button class="w-full flex items-center gap-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded text-sm font-medium transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> Thành viên</button>
-              <button onclick="event.stopPropagation(); deleteTask(currentEditingTaskId)" class="w-full flex items-center gap-2.5 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2.5 rounded text-sm font-semibold transition mt-4"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Xóa thẻ</button>
-          </div>
-      </div>
-  </div>
-</div>
-
-<!-- Date Picker Popup -->
-<div id="datePickerModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target === this) closeDatePicker()">
-  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-    <h3 class="text-lg font-bold text-gray-900 mb-4">Chọn ngày hết hạn</h3>
-    <p id="currentDeadlineText" class="text-sm text-gray-600 mb-3 hidden"></p>
-    <input type="date" id="dateInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-    <div class="flex items-center gap-2 mt-4">
-      <button onclick="saveDeadline()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition">Lưu</button>
-      <button onclick="closeDatePicker()" class="text-gray-500 hover:text-gray-800 transition px-4 py-2">Hủy</button>
-    </div>
-  </div>
-</div>
-
-<style>
-  ::-webkit-scrollbar { height: 8px; width: 8px; }
-  ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  .ghost-card { opacity: 0.1; background: #3b82f6 !important; border: 2px dashed #2563eb !important; }
-</style>
-
+<link rel="stylesheet" href="/css/project-board.css">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script src="/js/project-board.js"></script>
+
 <script>
-  const currentUserId = '<%= user ? (user._id || user.id) : "" %>';
-  const projectOwnerId = '<%= project ? (project.owner._id || project.owner) : "" %>';
+  // Add backend variables for comments integration safely using existing local values 
+  const currentUserIdLocal = '<%= user && user._id ? user._id : (user && user.id ? user.id : "") %>';
+  const projectOwnerIdLocal = '<%= project && project.owner && project.owner._id ? project.owner._id : (project && project.owner ? project.owner : "") %>';
 
-  let currentEditingTaskId = null;
-  let currentTask = null;
-  let descriptionEditor = null;
-  const modal = document.getElementById('taskModal');
-  const titleInput = document.getElementById('modalTaskTitle');
-  const descTextarea = document.getElementById('modalTaskDesc');
-
-  ClassicEditor.create(descTextarea, {
-    toolbar: ['bold', 'italic', 'link', 'bulletedList', 'numberedList', 'undo', 'redo']
-  })
-  .then(editor => {
-    descriptionEditor = editor;
-  })
-  .catch(error => {
-    console.error('CKEditor init error:', error);
-  });
-
-  // KÉO THẢ (DRAG & DROP)
-  const lists = document.querySelectorAll('.task-list');
-  lists.forEach(list => {
-    new Sortable(list, {
-      group: 'kanban', animation: 150, ghostClass: 'ghost-card',
-      onEnd: async function (evt) {
-        const taskId = evt.item.getAttribute('data-id');
-        const newStatus = evt.to.id;
-        if (evt.from !== evt.to) {
-          try {
-            await fetch('/api/tasks/update-status', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ taskId, newStatus })
-            });
-          } catch (e) { console.error('Lỗi cập nhật trạng thái'); }
-        }
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inject missing comment UI structure exactly where the original feature expected it
+    const txtArea = document.getElementById('txtComment');
+    if (txtArea) {
+      const container = txtArea.closest('.space-y-4');
+      if (container) {
+        container.insertAdjacentHTML('beforeend', '<div id="commentsList" class="space-y-4 mt-6"></div>');
       }
-    });
-  });
-
-  // MỞ CHI TIẾT TASK
-  async function openTaskDetail(taskId) {
-    currentEditingTaskId = taskId;
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`);
-      const result = await response.json();
-      const task = result.data || result; // Hỗ trợ cả {data: task} và task trực tiếp
-      currentTask = task;
-
-      titleInput.value = task.title;
-      if (descriptionEditor) {
-        descriptionEditor.setData(task.description || "");
-      } else {
-        descTextarea.value = task.description || "";
-      }
-      document.getElementById('txtDesc').innerHTML = task.description || "Thêm mô tả chi tiết hơn...";
-      
-      document.getElementById('modalColumnName').innerText = task.listId ? task.listId.title : 'Unknown';
-      
-      // Set date button
-      const btnDateText = document.getElementById('btnDateText');
-      const modalDeadlineText = document.getElementById('modalDeadlineText');
-      if (task.deadline) {
-        btnDateText.innerText = 'Sửa ngày';
-        const deadlineDate = new Date(task.deadline);
-        modalDeadlineText.innerText = 'Ngày hết hạn: ' + deadlineDate.toLocaleDateString('vi-VN');
-        modalDeadlineText.classList.remove('hidden');
-      } else {
-        btnDateText.innerText = 'Ngày';
-        modalDeadlineText.classList.add('hidden');
-      }
-      
-      modal.classList.remove('hidden');
-      await loadComments(taskId);
-    } catch (e) {
-      alert('Lỗi lấy chi tiết task');
     }
-  }
 
-  async function loadComments(taskId) {
+    // 2. Retain Add List Form Handler
+    const addListForm = document.getElementById('addListForm');
+    if (addListForm) {
+      addListForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+          projectId: form.projectId.value,
+          title: form.title.value.trim()
+        };
+        if (!data.title) return;
+        try {
+          const response = await fetch('/api/tasklists/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          if (response.ok) {
+            location.reload(); 
+          } else {
+            alert('Lỗi tạo danh sách');
+          }
+        } catch (error) {
+          alert('Lỗi tạo danh sách');
+        }
+      });
+    }
+
+    // 3. Retain Comment Submit logic
+    const btnComment = document.getElementById('btnComment');
+    if (btnComment && txtArea) {
+      btnComment.addEventListener('click', async () => {
+        const content = txtArea.value.trim();
+        const hasContent = content.length > 0;
+        if (hasContent && window.myCurrentEditingTaskId) {
+          try {
+            const response = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ content })
+            });
+            const isOk = response.ok;
+            if (isOk) {
+              txtArea.value = '';
+              btnComment.disabled = true;
+              btnComment.classList.remove('bg-blue-600', 'text-white');
+              btnComment.classList.add('cursor-not-allowed');
+              await loadComments(window.myCurrentEditingTaskId);
+            }
+          } catch (error) {
+            console.error('Lỗi thêm bình luận', error);
+          }
+        }
+      });
+    }
+
+    // 4. Hook the existing openTaskDetail to trigger comment load
+    if (window.openTaskDetail) {
+      const originalOpenTaskDetail = window.openTaskDetail;
+      window.openTaskDetail = async function(taskId) {
+        window.myCurrentEditingTaskId = taskId; // capture for script scope
+        await originalOpenTaskDetail(taskId);
+        await loadComments(taskId);
+      };
+    }
+  });
+
+  // Retained localized Comment API Integration Functions
+  window.loadComments = async function(taskId) {
     try {
       const response = await fetch(`/api/tasks/${taskId}/comments`);
       const isOk = response.ok;
@@ -284,6 +121,7 @@
         const comments = result.data || result;
         const hasComments = comments && comments.length > 0;
         const commentsList = document.getElementById('commentsList');
+        if(!commentsList) return;
         commentsList.innerHTML = '';
         if (hasComments) {
           comments.forEach(comment => {
@@ -293,8 +131,8 @@
             const date = new Date(comment.createdAt).toLocaleString('vi-VN');
             
             const commentUserId = user._id || user.id || '';
-            const isAuthor = currentUserId === commentUserId;
-            const isProjectOwner = currentUserId === projectOwnerId;
+            const isAuthor = currentUserIdLocal === commentUserId;
+            const isProjectOwner = currentUserIdLocal === projectOwnerIdLocal;
             const canEdit = isAuthor;
             const canDelete = isAuthor || isProjectOwner;
 
@@ -342,33 +180,33 @@
     } catch (e) {
       console.error('Lỗi tải bình luận', e);
     }
-  }
+  };
 
-  function editComment(commentId) {
+  window.editComment = function(commentId) {
     document.getElementById(`comment-view-${commentId}`).classList.add('hidden');
     document.getElementById(`comment-edit-${commentId}`).classList.remove('hidden');
     document.getElementById(`textarea-${commentId}`).focus();
-  }
+  };
 
-  function cancelEditComment(commentId) {
+  window.cancelEditComment = function(commentId) {
     document.getElementById(`comment-view-${commentId}`).classList.remove('hidden');
     document.getElementById(`comment-edit-${commentId}`).classList.add('hidden');
-  }
+  };
 
-  async function saveEditComment(commentId) {
+  window.saveEditComment = async function(commentId) {
     const textarea = document.getElementById(`textarea-${commentId}`);
     const content = textarea.value.trim();
     const hasContent = content.length > 0;
-    if (hasContent) {
+    if (hasContent && window.myCurrentEditingTaskId) {
       try {
-        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments/${commentId}`, {
+        const response = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments/${commentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content })
         });
         const isOk = response.ok;
         if (isOk) {
-          await loadComments(currentEditingTaskId);
+          await loadComments(window.myCurrentEditingTaskId);
         } else {
           alert('Lỗi sửa bình luận');
         }
@@ -376,18 +214,18 @@
         console.error(e);
       }
     }
-  }
+  };
 
-  async function deleteComment(commentId) {
+  window.deleteComment = async function(commentId) {
     const isConfirm = confirm('Bạn có chắc muốn xóa bình luận này?');
-    if (isConfirm) {
+    if (isConfirm && window.myCurrentEditingTaskId) {
       try {
-        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments/${commentId}`, {
+        const response = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments/${commentId}`, {
           method: 'DELETE'
         });
         const isOk = response.ok;
         if (isOk) {
-          await loadComments(currentEditingTaskId);
+          await loadComments(window.myCurrentEditingTaskId);
         } else {
           alert('Lỗi xóa bình luận');
         }
@@ -395,215 +233,5 @@
         console.error(e);
       }
     }
-  }
-
-  function closeModal() {
-    modal.classList.add('hidden');
-    currentEditingTaskId = null;
-    currentTask = null;
-    hideEditDesc();
-  }
-
-  // 1. CẬP NHẬT TIÊU ĐỀ (Title)
-  titleInput.addEventListener('blur', async () => {
-    const newTitle = titleInput.value;
-    try {
-      const response = await fetch(`/api/tasks/${currentEditingTaskId}/content`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle }) // Gửi field 'title' khớp Controller
-      });
-      if (response.ok) {
-        const taskCard = document.querySelector(`[data-id="${currentEditingTaskId}"] p`);
-        if (taskCard) taskCard.innerText = newTitle;
-      }
-    } catch (e) { console.error('Lỗi lưu tiêu đề'); }
-  });
-
-  // 2. CẬP NHẬT MÔ TẢ (Description)
-  function toggleEditDesc() {
-    document.getElementById('descView').classList.add('hidden');
-    document.getElementById('descEdit').classList.remove('hidden');
-    descTextarea.focus();
-  }
-  function hideEditDesc() {
-    document.getElementById('descView').classList.remove('hidden');
-    document.getElementById('descEdit').classList.add('hidden');
-  }
-  function cancelEditDesc() {
-    if (descriptionEditor) {
-      descriptionEditor.setData(currentTask.description || "");
-    } else {
-      descTextarea.value = currentTask.description || "";
-    }
-    hideEditDesc();
-  }
-
-  async function saveDescription() {
-    const newDesc = descriptionEditor ? descriptionEditor.getData() : descTextarea.value;
-    try {
-      const response = await fetch(`/api/tasks/${currentEditingTaskId}/description`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: newDesc }) // Gửi field 'description' khớp Controller
-      });
-      if (response.ok) {
-        document.getElementById('txtDesc').innerHTML = newDesc || "Thêm mô tả chi tiết hơn...";
-        hideEditDesc();
-      }
-    } catch (e) { alert('Lỗi lưu mô tả'); }
-  }
-
-  // 3. XÓA TASK
-  async function deleteTask(taskId) {
-    if (confirm('Bạn có chắc muốn xóa thẻ này vĩnh viễn?')) {
-      try {
-        const response = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
-        if (response.ok) {
-          const el = document.querySelector(`[data-id="${taskId}"]`);
-          if(el) el.remove();
-          closeModal();
-        }
-      } catch (e) { alert('Lỗi xóa'); }
-    }
-  }
-
-  // UI Comment
-  document.getElementById('txtComment').addEventListener('input', e => {
-    const btn = document.getElementById('btnComment');
-    const hasValue = e.target.value.trim().length > 0;
-    if (hasValue) {
-        btn.disabled = false;
-        btn.classList.add('bg-blue-600', 'text-white');
-        btn.classList.remove('cursor-not-allowed');
-    } else {
-        btn.disabled = true;
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('cursor-not-allowed');
-    }
-  });
-
-  document.getElementById('btnComment').addEventListener('click', async () => {
-    const txtArea = document.getElementById('txtComment');
-    const content = txtArea.value.trim();
-    const hasContent = content.length > 0;
-    if (hasContent) {
-      try {
-        const response = await fetch(`/api/tasks/${currentEditingTaskId}/comments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ content })
-        });
-        const isOk = response.ok;
-        if (isOk) {
-          txtArea.value = '';
-          const btn = document.getElementById('btnComment');
-          btn.disabled = true;
-          btn.classList.remove('bg-blue-600', 'text-white');
-          btn.classList.add('cursor-not-allowed');
-          await loadComments(currentEditingTaskId);
-        }
-      } catch (e) {
-        console.error('Lỗi thêm bình luận', e);
-      }
-    }
-  });
-
-  // Add List Form
-  document.getElementById('addListForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const data = {
-      projectId: form.projectId.value,
-      title: form.title.value.trim()
-    };
-    if (!data.title) return;
-    try {
-      const response = await fetch('/api/tasklists/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (response.ok) {
-        location.reload(); // Reload to show new list
-      } else {
-        alert('Lỗi tạo danh sách');
-      }
-    } catch (e) {
-      alert('Lỗi tạo danh sách');
-    }
-  });
-
-  // Date Button
-  document.getElementById('btnDate').addEventListener('click', openDatePicker);
-
-  function openDatePicker() {
-    const dateInput = document.getElementById('dateInput');
-    const currentDeadlineText = document.getElementById('currentDeadlineText');
-    if (currentTask) {
-      const createdAt = new Date(currentTask.createdAt);
-      const minDate = createdAt.toISOString().split('T')[0];
-      dateInput.min = minDate;
-      if (currentTask.deadline) {
-        const date = new Date(currentTask.deadline);
-        dateInput.value = date.toISOString().split('T')[0];
-        currentDeadlineText.textContent = 'Hiện tại: ' + date.toLocaleDateString('vi-VN');
-        currentDeadlineText.classList.remove('hidden');
-      } else {
-        dateInput.value = minDate;
-        currentDeadlineText.classList.add('hidden');
-      }
-    } else {
-      dateInput.value = '';
-      dateInput.removeAttribute('min');
-      currentDeadlineText.classList.add('hidden');
-    }
-    document.getElementById('datePickerModal').classList.remove('hidden');
-  }
-
-  function closeDatePicker() {
-    document.getElementById('datePickerModal').classList.add('hidden');
-  }
-
-  async function saveDeadline() {
-    const dateInput = document.getElementById('dateInput');
-    const deadline = dateInput.value;
-    if (!deadline) return;
-    try {
-      const response = await fetch(`/api/tasks/${currentEditingTaskId}/deadline`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deadline })
-      });
-      if (response.ok) {
-        closeDatePicker();
-        // Optionally update UI or reload
-        location.reload();
-      } else {
-        alert('Lỗi lưu ngày');
-      }
-    } catch (e) {
-      alert('Lỗi lưu ngày');
-    }
-  }
+  };
 </script>
-
-<!-- Ẩn thanh cuộn mặc định để nhìn đẹp hơn -->
-<style>
-  ::-webkit-scrollbar {
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-</style>

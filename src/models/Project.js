@@ -1,10 +1,30 @@
 const mongoose = require("mongoose");
 
+const projectMemberSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["owner", "member"],
+      default: "member",
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const projectSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true, //36
+      required: true,
       trim: true,
     },
 
@@ -21,12 +41,7 @@ const projectSchema = new mongoose.Schema(
       index: true,
     },
 
-    members: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    members: [projectMemberSchema],
 
     isDeleted: {
       type: Boolean,
