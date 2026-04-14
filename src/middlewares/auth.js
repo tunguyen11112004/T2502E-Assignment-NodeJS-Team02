@@ -132,12 +132,12 @@ exports.checkTaskPermission = async (req, res, next) => {
     const taskId = req.params.id || req.params.taskId;
     const currentUserId = req.user.id || req.user._id;
 
-    if (!mongoose.Types.ObjectId.isValid(taskId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid task id",
-      });
-    }
+    // if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Invalid task id",
+    //   });
+    // }
 
     const task = await Task.findById(taskId).populate("listId");
 

@@ -13,6 +13,8 @@ router.put('/update-status', verifyToken, checkTaskPermission, taskController.up
 
 router.get('/my-tasks', verifyToken, taskController.getMyTasks);
 
+router.get('/deleted', verifyToken, taskController.getDeletedTasks);
+
 router.post(
   "/:taskId/comments",
   verifyToken,

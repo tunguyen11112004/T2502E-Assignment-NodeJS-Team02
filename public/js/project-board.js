@@ -431,7 +431,7 @@ async function saveDescription() {
 async function deleteTask(taskId) {
   if (!taskId) return;
 
-  if (!confirm("Bạn có chắc muốn xóa thẻ này vĩnh viễn?")) return;
+  if (!confirm("Bạn có muốn lưu trữ thẻ này không?")) return;
 
   try {
     const response = await fetch("/api/tasks/" + taskId, {
@@ -586,9 +586,12 @@ window.saveDescription = saveDescription;
 window.deleteTask = deleteTask;
 window.openDatePicker = openDatePicker;
 window.closeDatePicker = closeDatePicker;
-window.saveDeadline = saveDeadline;
+window.openTrashModal = openTrashModal;
+window.closeTrashModal = closeTrashModal;
 
 function openTrashModal() {
+  const modal = document.getElementById("trashModal");
+  if (modal) showFlex(modal);
   loadDeletedTasks();
 }
 
@@ -598,9 +601,8 @@ function closeTrashModal() {
 }
 
 async function loadDeletedTasks() {
-  const modal = document.getElementById("trashModal");
   const listEl = document.getElementById("trashTaskList");
-  if (!modal || !listEl) return;
+  if (!listEl) return;
 
   try {
     const response = await fetch(`/api/tasks/deleted?projectId=${projectId}`, {
@@ -611,15 +613,14 @@ async function loadDeletedTasks() {
     const result = await response.json();
 
     if (!response.ok) {
-      alert(result.message || "Không thể tải danh sách task đã xóa");
+      listEl.innerHTML = `<div class="p-4 text-sm text-red-500 text-center">${result.message || "Không thể tải danh sách task đã xóa"}</div>`;
       return;
     }
 
     const tasks = result.data || [];
     renderDeletedTasks(tasks);
-    showFlex(modal);
   } catch (e) {
-    alert("Lỗi khi tải danh sách task đã xóa");
+    listEl.innerHTML = '<div class="p-4 text-sm text-red-500 text-center">Lỗi khi tải danh sách task đã xóa</div>';
   }
 }
 
