@@ -14,10 +14,10 @@ const taskSchema = new mongoose.Schema(
       enum: ["Low", "Medium", "High"],
       default: "Medium",
     },
-    assignee: {
+    assignee: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-    },
+    }],
     deadline: { type: Date },
     isDeleted: { type: Boolean, default: false },
   },

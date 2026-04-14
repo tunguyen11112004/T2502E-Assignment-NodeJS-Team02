@@ -176,7 +176,25 @@ const taskController = {
   deleteTask: async (req, res) => {
     try {
         const { id } = req.params;
-        await Task.findByIdAndDelete(id);
+        const currentUserId = req.user.id || req.user._id;
+
+        const task = await Task.findById(id).populate("listId", "projectId");
+        if (!task) {
+          return res.status(404).json({ success: false, message: "Task not found" });
+        }
+
+        const Project = require("../models/Project");
+        const project = await Project.findById(task.listId.projectId);
+
+        if (!project || project.isDeleted) {
+          return res.status(404).json({ success: false, message: "Project not found" });
+        }
+
+        if (project.owner.toString() !== currentUserId.toString()) {
+          return res.status(403).json({ success: false, message: "Only owner can delete tasks" });
+        }
+
+        await Task.findByIdAndUpdate(id, { isDeleted: true});
         res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false });
@@ -184,10 +202,15 @@ const taskController = {
   },
   getTaskDetail: async (req, res) => {
     try {
-        const task = await Task.findById(req.params.id).populate("listId", "title");
-        res.status(200).json(task);
+        const task = await Task.findById(req.params.id)
+          .populate("listId", "title projectId")
+          .populate("assignee", "fullname email avatar");
+        if (!task) {
+          return res.status(404).json({ success: false, message: "Task not found" });
+        }
+        res.status(200).json({ success: true, data: task });
     } catch (error) {
-        res.status(500).json({ message: "Không tìm thấy task" });
+        res.status(500).json({ success: false, message: error.message });
     }
   },
   updateTaskContent: async (req, res) => {
@@ -214,10 +237,24 @@ const taskController = {
     try {
         const { id } = req.params;
         const { deadline } = req.body;
-        const task = await Task.findById(id);
+        const currentUserId = req.user.id || req.user._id;
+
+        const task = await Task.findById(id).populate("listId", "projectId");
         if (!task) {
           return res.status(404).json({ success: false, message: "Task không tồn tại" });
         }
+
+        const Project = require("../models/Project");
+        const project = await Project.findById(task.listId.projectId);
+
+        if (!project || project.isDeleted) {
+          return res.status(404).json({ success: false, message: "Project not found" });
+        }
+
+        if (project.owner.toString() !== currentUserId.toString()) {
+          return res.status(403).json({ success: false, message: "Only owner can update deadline" });
+        }
+
         const selectedDeadline = new Date(deadline);
         if (isNaN(selectedDeadline.getTime())) {
           return res.status(400).json({ success: false, message: "Ngày không hợp lệ" });
@@ -235,6 +272,79 @@ const taskController = {
         res.status(200).json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false });
+    }
+  },
+
+  addAssignee: async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const { userId } = req.body;
+      const currentUserId = req.user.id || req.user._id;
+
+      const task = await Task.findById(taskId).populate("listId", "projectId");
+      if (!task) {
+        return res.status(404).json({ success: false, message: "Task not found" });
+      }
+
+      const Project = require("../models/Project");
+      const project = await Project.findById(task.listId.projectId);
+
+      if (!project || project.isDeleted) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+
+      if (project.owner.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Only owner can manage assignees" });
+      }
+
+      const User = require("../models/User");
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      if (task.assignee.includes(userId)) {
+        task.assignee.pull(userId);
+        await task.save();
+        return res.status(200).json({ success: true, code: 201, message: "Xóa assignee thành công" });
+      }
+      task.assignee.push(userId);
+      await task.save();
+      return res.status(200).json({ success: true, code: 202, message: "Thêm assignee thành công" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  removeAssignee: async (req, res) => {
+    try {
+      const { taskId, userId } = req.params;
+      const currentUserId = req.user.id || req.user._id;
+
+      const task = await Task.findById(taskId).populate("listId", "projectId");
+      if (!task) {
+        return res.status(404).json({ success: false, message: "Task not found" });
+      }
+
+      const Project = require("../models/Project");
+      const project = await Project.findById(task.listId.projectId);
+
+      if (!project || project.isDeleted) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+
+      if (project.owner.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Only owner can manage assignees" });
+      }
+
+      const index = task.assignee.indexOf(userId);
+      if (index === -1) {
+        return res.status(400).json({ success: false, message: "User not assigned to this task" });
+      }
+      task.assignee.splice(index, 1);
+      await task.save();
+      res.status(200).json({ success: true, message: "Assignee removed" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
     }
   },
   getComments: async (req, res) => {
@@ -258,6 +368,112 @@ const taskController = {
       });
       await newComment.save();
       res.status(200).json({ success: true, data: newComment });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  getDeletedTasks: async (req, res) => {
+    try {
+      const { projectId } = req.query;
+      const currentUserId = req.user.id || req.user._id;
+
+      if (!projectId) {
+        return res.status(400).json({ success: false, message: "Project ID is required" });
+      }
+
+      const Project = require("../models/Project");
+      const project = await Project.findById(projectId);
+
+      if (!project || project.isDeleted) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+
+      if (project.owner.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Only owner can view deleted tasks" });
+      }
+
+      // Find all task lists of the project
+      const taskLists = await TaskList.find({ projectId });
+      const listIds = taskLists.map(tl => tl._id);
+
+      // Find deleted tasks in those lists
+      const tasks = await Task.find({
+        listId: { $in: listIds },
+        isDeleted: true,
+      })
+        .populate("assignee", "fullname email avatar")
+        .populate("listId", "title")
+        .sort({ updatedAt: -1 });
+
+      res.status(200).json({ success: true, data: tasks });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  restoreTask: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.user.id || req.user._id;
+
+      const task = await Task.findById(id).populate("listId", "projectId");
+      if (!task) {
+        return res.status(404).json({ success: false, message: "Task not found" });
+      }
+
+      if (!task.isDeleted) {
+        return res.status(400).json({ success: false, message: "Task is not deleted" });
+      }
+
+      const Project = require("../models/Project");
+      const project = await Project.findById(task.listId.projectId);
+
+      if (!project || project.isDeleted) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+
+      if (project.owner.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Only owner can restore tasks" });
+      }
+
+      task.isDeleted = false;
+      await task.save();
+
+      res.status(200).json({ success: true, message: "Task restored successfully" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  permanentDeleteTask: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.user.id || req.user._id;
+
+      const task = await Task.findById(id).populate("listId", "projectId");
+      if (!task) {
+        return res.status(404).json({ success: false, message: "Task not found" });
+      }
+
+      if (!task.isDeleted) {
+        return res.status(400).json({ success: false, message: "Task is not deleted" });
+      }
+
+      const Project = require("../models/Project");
+      const project = await Project.findById(task.listId.projectId);
+
+      if (!project || project.isDeleted) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+
+      if (project.owner.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Only owner can permanently delete tasks" });
+      }
+
+      await Task.findByIdAndDelete(id);
+
+      res.status(200).json({ success: true, message: "Task permanently deleted" });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }

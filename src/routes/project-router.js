@@ -31,4 +31,6 @@ router.delete("/:id", verifyToken, isOwner, projectController.deleteProject);
 
 router.post("/:id/invite", verifyToken, isOwner, projectController.inviteMember);
 
+router.get("/:id/members", verifyToken, projectController.getProjectMembers);
+
 module.exports = router;

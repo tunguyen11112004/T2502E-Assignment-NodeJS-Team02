@@ -314,11 +314,15 @@ exports.getProjectBoard = async (req, res) => {
         const tasks = await Task.find({ listId: { $in: listIds } }).populate("listId", "title").populate("assignee", "fullname");
 
         // 4. Render giao diện board
+        const currentUserId = req.user.id || req.user._id;
+        const isOwner = project.owner._id.toString() === currentUserId.toString();
+
         res.render('client/project-board', { 
             project, 
             taskLists,
             tasks, // Gửi nguyên mảng tasks
             user: req.user,
+            isOwner,
             success: req.query.success || null,
             error: req.query.error || null
         });
@@ -467,6 +471,51 @@ exports.updateMemberRole = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Cập nhật quyền thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET PROJECT MEMBERS
+// GET /api/projects/:id/members
+exports.getProjectMembers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user.id || req.user._id;
+
+    const project = await Project.findById(id)
+      .populate("members.user", "fullname email avatar");
+
+    if (!project || project.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+    const isMember = project.members.some(m => m.user._id.toString() === currentUserId.toString());
+
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to view this project's members",
+      });
+    }
+
+    // Return members including owner
+    const members = project.members.map(m => ({
+        user: m.user,
+        role: m.role,
+        joinedAt: m.joinedAt,
+      }));
+
+    return res.status(200).json({
+      success: true,
+      message: "Get project members successfully",
+      data: members,
     });
   } catch (error) {
     return res.status(500).json({

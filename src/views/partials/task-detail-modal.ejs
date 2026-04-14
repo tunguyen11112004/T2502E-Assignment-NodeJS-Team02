@@ -22,6 +22,7 @@
             <span id="modalColumnName" class="font-medium text-gray-700 underline">...</span>
           </p>
           <p id="modalDeadlineText" class="text-sm text-gray-600 mt-1 hidden"></p>
+          <div id="modalAssigneeList" class="mt-3 flex flex-wrap items-center gap-2"></div>
         </div>
       </div>
 
@@ -39,12 +40,15 @@
     <div class="p-6 flex-grow overflow-y-auto grid grid-cols-1 md:grid-cols-[1fr,240px] gap-8">
       <div class="space-y-8">
         <div class="flex flex-wrap gap-2 pt-1">
+          <% if (isOwner) { %>
           <button
             type="button"
-            class="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium transition"
+            onclick="openAssignPopup(event)"
+            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition"
           >
-            <span class="text-lg">+</span> Thêm
+            <span class="text-lg">+</span> Gán thành viên
           </button>
+          <% } %>
 
           <button
             type="button"
@@ -56,6 +60,7 @@
             Nhãn
           </button>
 
+          <% if (isOwner) { %>
           <button
             type="button"
             id="btnDate"
@@ -66,6 +71,7 @@
             </svg>
             <span id="btnDateText">Ngày</span>
           </button>
+          <% } %>
         </div>
 
         <div class="space-y-3">
@@ -156,6 +162,28 @@
         </div>
       </div>
 
+      <div id="assignMemberPopup" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" onclick="if(event.target === this) closeAssignPopup()">
+        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div class="flex items-center justify-between p-5 border-b border-gray-200">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">Chọn thành viên</h3>
+              <p class="text-sm text-gray-500">Tìm theo tên hoặc email để gán vào task</p>
+            </div>
+            <button type="button" onclick="event.stopPropagation(); closeAssignPopup()" class="text-gray-500 hover:text-gray-800">
+              ✕
+            </button>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div class="rounded-lg border border-gray-200 overflow-hidden">
+              <input id="assignSearchInput" type="text" placeholder="Tìm kiếm theo tên hoặc email" class="w-full p-3 text-sm outline-none" oninput="filterAssignMembers()" />
+            </div>
+
+            <div id="assignMemberList" class="max-h-80 overflow-y-auto space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="hidden md:block space-y-4 pt-1">
         <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Hành động</h4>
 
@@ -169,6 +197,7 @@
           Thành viên
         </button>
 
+        <% if (isOwner) { %>
         <button
           type="button"
           onclick="event.stopPropagation(); deleteTask(currentEditingTaskId)"
@@ -179,6 +208,7 @@
           </svg>
           Xóa thẻ
         </button>
+        <% } %>
       </div>
     </div>
   </div>
