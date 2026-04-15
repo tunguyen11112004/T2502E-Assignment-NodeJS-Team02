@@ -689,7 +689,7 @@ async function restoreTask(taskId) {
     }
 
     alert("Khôi phục task thành công");
-    loadDeletedTasks(); // Reload the list
+    location.reload(); // Reload the list
   } catch (e) {
     alert("Lỗi khi khôi phục task");
   }

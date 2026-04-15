@@ -313,7 +313,7 @@ exports.getProjectBoard = async (req, res) => {
 
         // 3. Lấy danh sách task của các list này
         const listIds = taskLists.map(tl => tl._id);
-        const tasks = await Task.find({ listId: { $in: listIds } }).populate("listId", "title").populate("assignee", "fullname");
+        const tasks = await Task.find({ listId: { $in: listIds }, isDeleted: { $ne: true } }).populate("listId", "title").populate("assignee", "fullname");
 
         // 4. Render giao diện board
         const currentUserId = req.user.id || req.user._id;
