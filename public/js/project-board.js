@@ -565,6 +565,26 @@ function initDateButton() {
   btnDate.addEventListener("click", openDatePicker);
 }
 
+async function deleteTaskList(taskListId) {
+  if (!taskListId) return;
+
+  if (!confirm("Bạn có muốn xóa danh sách này không?")) return;
+
+  try {
+    const response = await fetch("/api/tasklists/" + taskListId, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      location.reload();
+    } else {
+      alert("Lỗi xóa danh sách");
+    }
+  } catch (e) {
+    alert("Lỗi xóa danh sách");
+  }
+}
+
 function initBoard() {
   initSortableLists();
   initCommentUI();
@@ -584,6 +604,7 @@ window.toggleEditDesc = toggleEditDesc;
 window.cancelEditDesc = cancelEditDesc;
 window.saveDescription = saveDescription;
 window.deleteTask = deleteTask;
+window.deleteTaskList = deleteTaskList;
 window.openDatePicker = openDatePicker;
 window.closeDatePicker = closeDatePicker;
 window.openTrashModal = openTrashModal;

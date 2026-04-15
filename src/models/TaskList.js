@@ -12,6 +12,10 @@ const taskListSchema = new mongoose.Schema(
       ref: "Project",
       required: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

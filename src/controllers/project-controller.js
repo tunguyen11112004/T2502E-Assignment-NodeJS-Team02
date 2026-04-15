@@ -309,7 +309,7 @@ exports.getProjectBoard = async (req, res) => {
         }
 
         // 2. Lấy danh sách TaskList của dự án này
-        const taskLists = await TaskList.find({ projectId: projectId });
+        const taskLists = await TaskList.find({ projectId: projectId, isDeleted: false });
 
         // 3. Lấy danh sách task của các list này
         const listIds = taskLists.map(tl => tl._id);

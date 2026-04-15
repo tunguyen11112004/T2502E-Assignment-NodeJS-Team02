@@ -6,4 +6,7 @@ const { verifyToken } = require("../middlewares/auth-middleware");
 // Route tạo TaskList mới
 router.post('/create', verifyToken, taskListController.create);
 
+// Route xóa mềm TaskList
+router.delete('/:id', verifyToken, taskListController.delete);
+
 module.exports = router;
