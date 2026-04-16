@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 
+
 // Check member
 exports.isMember = async (req, res, next) => {
   try {
@@ -24,9 +25,9 @@ exports.isMember = async (req, res, next) => {
       });
     }
 
-    const isMember =
-      project.owner.toString() === currentUserId.toString() ||
-      project.members.some((m) => m.user.toString() === currentUserId.toString());
+    const isMember = project.members.some(
+      (m) => m.user.toString() === currentUserId.toString()
+    );
 
     if (!isMember) {
       return res.status(403).json({
@@ -45,7 +46,8 @@ exports.isMember = async (req, res, next) => {
   }
 };
 
-// Check owner
+
+// Check owner (MULTI OWNER)
 exports.isOwner = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -67,7 +69,13 @@ exports.isOwner = async (req, res, next) => {
       });
     }
 
-    if (project.owner.toString() !== currentUserId.toString()) {
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
+
+    if (!isOwner) {
       return res.status(403).json({
         success: false,
         message: "Only owner allowed",
@@ -83,6 +91,7 @@ exports.isOwner = async (req, res, next) => {
     });
   }
 };
+
 
 // Check project permission for creating tasks
 exports.checkProjectPermission = async (req, res, next) => {
@@ -106,8 +115,15 @@ exports.checkProjectPermission = async (req, res, next) => {
       });
     }
 
-    const isOwner = project.owner.toString() === currentUserId.toString();
-    const isMember = project.members.some((m) => m.user.toString() === currentUserId.toString());
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
+
+    const isMember = project.members.some(
+      (m) => m.user.toString() === currentUserId.toString()
+    );
 
     if (!isOwner && !isMember) {
       return res.status(403).json({
@@ -126,18 +142,12 @@ exports.checkProjectPermission = async (req, res, next) => {
   }
 };
 
-// Check task permission for members and owners
+
+// Check task permission
 exports.checkTaskPermission = async (req, res, next) => {
   try {
     const taskId = req.params.id || req.params.taskId;
     const currentUserId = req.user.id || req.user._id;
-
-    // if (!mongoose.Types.ObjectId.isValid(taskId)) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid task id",
-    //   });
-    // }
 
     const task = await Task.findById(taskId).populate("listId");
 
@@ -158,8 +168,15 @@ exports.checkTaskPermission = async (req, res, next) => {
       });
     }
 
-    const isOwner = project.owner.toString() === currentUserId.toString();
-    const isMember = project.members.some((m) => m.user.toString() === currentUserId.toString());
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
+
+    const isMember = project.members.some(
+      (m) => m.user.toString() === currentUserId.toString()
+    );
 
     if (!isOwner && !isMember) {
       return res.status(403).json({
@@ -207,10 +224,10 @@ exports.checkTaskPermission = async (req, res, next) => {
       return next();
     }
 
-    return res.status(403).json({
-      success: false,
-      message: "Members can only perform limited actions on tasks",
-    });
+    // req.project = project;
+    // req.task = task;
+    // return next();
+
   } catch (error) {
     return res.status(500).json({
       success: false,

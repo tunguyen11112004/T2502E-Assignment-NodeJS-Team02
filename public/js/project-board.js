@@ -469,38 +469,29 @@ function initCommentUI() {
   });
 }
 
-function openDatePicker() {
-  const dateInput = document.getElementById("dateInput");
-  const currentDeadlineText = document.getElementById("currentDeadlineText");
+window.openDatePicker = function() {
   const picker = document.getElementById("datePickerModal");
+  const dateInput = document.getElementById("dateInput");
 
-  if (!dateInput || !picker) return;
-
-  if (currentTask) {
-    const today = new Date();
-    const minDate = toLocalDateInputString(today);
-    dateInput.min = minDate;
-
-    if (currentTask.deadline) {
-      const date = new Date(currentTask.deadline);
-      dateInput.value = toLocalDateInputString(date);
-
-      if (currentDeadlineText) {
-        currentDeadlineText.textContent = "Hiện tại: " + date.toLocaleDateString("vi-VN");
-        currentDeadlineText.classList.remove("hidden");
-      }
-    } else {
-      dateInput.value = minDate;
-      if (currentDeadlineText) currentDeadlineText.classList.add("hidden");
-    }
-  } else {
-    dateInput.value = "";
-    dateInput.removeAttribute("min");
-    if (currentDeadlineText) currentDeadlineText.classList.add("hidden");
+  if (!picker || !dateInput) {
+    // Nếu vẫn lỗi, chúng ta sẽ kiểm tra xem có bao nhiêu cái trùng ID
+    const count = document.querySelectorAll("#datePickerModal").length;
+    console.error(`Lỗi nghiêm trọng: Tìm thấy ${count} phần tử trùng ID 'datePickerModal'`);
+    return;
   }
 
-  showFlex(picker);
-}
+  // Lấy task hiện tại từ biến global (đảm bảo đã gán khi mở detail)
+  const task = window.currentTask;
+  
+  if (task && task.deadline) {
+    const date = new Date(task.deadline);
+    dateInput.value = toLocalDateInputString(date);
+  }
+
+  // Hiển thị modal
+  picker.classList.remove('hidden');
+  picker.classList.add('flex');
+};
 
 function closeDatePicker() {
   const picker = document.getElementById("datePickerModal");
@@ -509,26 +500,61 @@ function closeDatePicker() {
 
 async function saveDeadline() {
   const dateInput = document.getElementById("dateInput");
-  if (!dateInput || !currentEditingTaskId) return;
+  
+  // 1. Thống nhất biến ID: Đảm bảo lấy đúng ID task đang sửa từ biến global
+  const taskId = window.currentEditingTaskId || window.myCurrentEditingTaskId;
+  
+  if (!dateInput || !taskId) {
+    console.error("Thiếu thông tin: ID Task hoặc Input không tồn tại");
+    return;
+  }
 
   const deadline = dateInput.value;
-  if (!deadline) return;
+  if (!deadline) {
+    alert("Vui lòng chọn ngày trước khi lưu");
+    return;
+  }
 
   try {
-    const response = await fetch("/api/tasks/" + currentEditingTaskId + "/deadline", {
+    // Hiệu ứng loading nhẹ (nếu cần)
+    const btnSave = document.querySelector("#datePickerModal button[onclick='saveDeadline()']");
+    if (btnSave) btnSave.disabled = true;
+
+    const response = await fetch(`/api/tasks/${taskId}/deadline`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deadline }),
     });
 
+    const result = await response.json();
+
     if (response.ok) {
+      // 2. Cập nhật UI tại chỗ thay vì location.reload() để tăng trải nghiệm người dùng
+      // Cập nhật text hiển thị deadline trên modal task detail
+      const deadlineDisplay = document.getElementById("taskDeadlineDisplay");
+      if (deadlineDisplay) {
+        const dateObj = new Date(deadline);
+        deadlineDisplay.textContent = dateObj.toLocaleDateString("vi-VN");
+      }
+
+      // 3. Đóng modal và thông báo
       closeDatePicker();
-      location.reload();
+      
+      // Nếu bạn có hàm load lại danh sách board thì gọi ở đây
+      if (typeof loadProjectBoard === "function") {
+          loadProjectBoard(); 
+      } else {
+          location.reload(); // Cách cuối cùng nếu không có hàm load động
+      }
     } else {
-      alert("Lỗi lưu ngày");
+      alert(result.message || "Lỗi lưu ngày từ server");
     }
   } catch (e) {
-    alert("Lỗi lưu ngày");
+    console.error("Lỗi Fetch:", e);
+    alert("Không thể kết nối đến máy chủ để lưu ngày");
+  } finally {
+    const btnSave = document.querySelector("#datePickerModal button[onclick='saveDeadline()']");
+    if (btnSave) btnSave.disabled = false;
   }
 }
 
@@ -605,8 +631,9 @@ window.cancelEditDesc = cancelEditDesc;
 window.saveDescription = saveDescription;
 window.deleteTask = deleteTask;
 window.deleteTaskList = deleteTaskList;
-window.openDatePicker = openDatePicker;
-window.closeDatePicker = closeDatePicker;
+window.openDatePicker = openDatePicker; // Hàm để mở modal
+window.closeDatePicker = closeDatePicker; // Hàm để đóng modal
+window.saveDeadline = saveDeadline; // Hàm để xử lý lưu ngày
 window.openTrashModal = openTrashModal;
 window.closeTrashModal = closeTrashModal;
 
@@ -739,3 +766,53 @@ async function permanentDeleteTask(taskId) {
     alert("Lỗi khi xóa vĩnh viễn task");
   }
 }
+// ===============================
+// CLOSE MODAL WHEN CLICK OUTSIDE
+// ===============================
+document.addEventListener("click", function (e) {
+
+  const inviteModal = document.getElementById("inviteModal");
+  const taskModal = document.getElementById("taskModal");
+  const trashModal = document.getElementById("trashModal");
+  const dateModal = document.getElementById("datePickerModal");
+
+  function handleClose(modal, closeFn) {
+    if (!modal) return;
+
+    const content = modal.querySelector("div");
+    const isVisible = !modal.classList.contains("hidden");
+
+    if (
+      isVisible &&
+      content &&
+      !content.contains(e.target) &&
+      !e.target.closest("[onclick*='openInviteModal']") &&
+      !e.target.closest("[onclick*='openTrashModal']") &&
+      !e.target.closest("[onclick*='openDatePicker']")
+    ) {
+      closeFn();
+    }
+  }
+
+  handleClose(inviteModal, closeInviteModal);
+  handleClose(taskModal, closeModal);
+  handleClose(trashModal, closeTrashModal);
+  handleClose(dateModal, closeDatePicker);
+
+});
+
+document.addEventListener("click", function (e) {
+  const allDetails = document.querySelectorAll("details");
+
+  allDetails.forEach((detail) => {
+    const summary = detail.querySelector("summary");
+
+    if (summary && summary.contains(e.target)) {
+      return; // click vào button thì bỏ qua
+    }
+
+    if (!detail.contains(e.target)) {
+      detail.open = false;
+    }
+  });
+});

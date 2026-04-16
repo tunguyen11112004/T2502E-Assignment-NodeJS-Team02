@@ -15,7 +15,7 @@ exports.renderHome = async (req, res) => {
 
     const projects = await Project.find({
       isDeleted: false,
-      $or: [{ owner: currentUserId }, { "members.user": currentUserId }],
+      "members.user": currentUserId,
     })
       .populate("owner", "fullname email avatar")
       .populate("members.user", "fullname email avatar")
@@ -33,8 +33,8 @@ exports.renderHome = async (req, res) => {
   }
 };
 
+
 // CREATE PROJECT
-// POST /api/projects
 exports.createProject = async (req, res) => {
   try {
     const currentUserId = req.user.id || req.user._id;
@@ -43,7 +43,7 @@ exports.createProject = async (req, res) => {
     if (!title || !title.trim()) {
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
         return res.redirect(
-          "/?error=" + encodeURIComponent("Tiêu đề dự án là bắt buộc"),
+          "/?error=" + encodeURIComponent("Tiêu đề dự án là bắt buộc")
         );
       }
 
@@ -62,7 +62,7 @@ exports.createProject = async (req, res) => {
 
     if (req.headers.accept && req.headers.accept.includes("text/html")) {
       return res.redirect(
-        "/?success=" + encodeURIComponent("Tạo project thành công"),
+        "/?success=" + encodeURIComponent("Tạo project thành công")
       );
     }
 
@@ -71,10 +71,6 @@ exports.createProject = async (req, res) => {
       message: "Create project successfully",
     });
   } catch (error) {
-    if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect("/?error=" + encodeURIComponent(error.message));
-    }
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -82,15 +78,15 @@ exports.createProject = async (req, res) => {
   }
 };
 
+
 // GET PROJECT LIST
-// GET /api/projects
 exports.getProjects = async (req, res) => {
   try {
     const currentUserId = req.user.id || req.user._id;
 
     const projects = await Project.find({
       isDeleted: false,
-      $or: [{ owner: currentUserId }, { "members.user": currentUserId }],
+      "members.user": currentUserId,
     })
       .populate("owner", "fullname email avatar")
       .populate("members.user", "fullname email avatar")
@@ -98,7 +94,6 @@ exports.getProjects = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Get project list successfully",
       data: projects,
     });
   } catch (error) {
@@ -109,34 +104,30 @@ exports.getProjects = async (req, res) => {
   }
 };
 
+
 // UPDATE PROJECT
-// PATCH/PUT /api/projects/:id
 exports.updateProject = async (req, res) => {
   try {
     const currentUserId = req.user.id || req.user._id;
     const { id } = req.params;
-const { title, description } = req.body;
+    const { title, description } = req.body;
 
     const project = await Project.findById(id);
 
     if (!project || project.isDeleted) {
-      if (req.headers.accept && req.headers.accept.includes("text/html")) {
-        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại"));
-      }
-
       return res.status(404).json({
         success: false,
         message: "Project not found",
       });
     }
 
-    if (project.owner.toString() !== currentUserId.toString()) {
-      if (req.headers.accept && req.headers.accept.includes("text/html")) {
-        return res.redirect(
-          "/?error=" + encodeURIComponent("Chỉ owner mới được sửa project"),
-        );
-      }
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
 
+    if (!isOwner) {
       return res.status(403).json({
         success: false,
         message: "Only owner can update this project",
@@ -144,19 +135,6 @@ const { title, description } = req.body;
     }
 
     if (title !== undefined) {
-      if (!title.trim()) {
-        if (req.headers.accept && req.headers.accept.includes("text/html")) {
-          return res.redirect(
-            "/?error=" + encodeURIComponent("Tiêu đề không được để trống"),
-          );
-        }
-
-        return res.status(400).json({
-          success: false,
-          message: "Title cannot be empty",
-        });
-      }
-
       project.title = title.trim();
     }
 
@@ -166,22 +144,11 @@ const { title, description } = req.body;
 
     await project.save();
 
-    if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect(
-        "/?success=" + encodeURIComponent("Cập nhật project thành công"),
-      );
-    }
-
     return res.status(200).json({
       success: true,
-      message: "Project updated successfully",
       data: project,
     });
   } catch (error) {
-    if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect("/?error=" + encodeURIComponent(error.message));
-    }
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -189,52 +156,36 @@ const { title, description } = req.body;
   }
 };
 
-// SOFT DELETE PROJECT
-// DELETE /api/projects/:id
+
+// DELETE PROJECT
 exports.deleteProject = async (req, res) => {
   try {
     const currentUserId = req.user.id || req.user._id;
     const { id } = req.params;
 
-    const updatedProject = await Project.findOneAndUpdate(
-      {
-        _id: id,
-        owner: currentUserId,
-        isDeleted: false,
-      },
-      {
-        $set: { isDeleted: true },
-      },
-      {
-        new: true,
-        runValidators: false,
-      }
+    const project = await Project.findById(id);
+
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
     );
 
-    if (!updatedProject) {
-      if (req.headers.accept && req.headers.accept.includes("text/html")) {
-        return res.redirect("/?error=" + encodeURIComponent("Project không tồn tại hoặc bạn không có quyền xóa"));
-      }
-
-      return res.status(404).json({
+    if (!isOwner) {
+      return res.status(403).json({
         success: false,
-        message: "Project not found or you do not have permission",
+        message: "Only owner can delete project",
       });
     }
 
-    if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect("/?success=" + encodeURIComponent("Xóa project thành công"));
-    }
+    project.isDeleted = true;
+    await project.save();
 
     return res.status(200).json({
       success: true,
       message: "Project deleted successfully",
     });
   } catch (error) {
-    if (req.headers.accept && req.headers.accept.includes("text/html")) {
-      return res.redirect("/?error=" + encodeURIComponent(error.message));
-    }
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -243,99 +194,55 @@ exports.deleteProject = async (req, res) => {
 };
 
 
-exports.createTask = async (req, res) => {
-    try {
-        const currentUserId = req.user.id || req.user._id;
-        const { title, description, projectId, deadline, priority } = req.body;
-        // 1. Kiểm tra dự án có tồn tại không
-        const project = await Project.findById(projectId);
-        if (!project || project.isDeleted) {
-            return res.status(404).json({ success: false, message: "Dự án không tồn tại" });
-        }
-        // 2. Logic kiểm tra 2.3: Deadline không được là quá khứ
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const selectedDate = new Date(deadline);
-        selectedDate.setHours(0, 0, 0, 0);
-
-        if (selectedDate < today) {
-            if (req.headers.accept && req.headers.accept.includes("text/html")) {
-                return res.redirect("back"); // Hoặc redirect kèm lỗi
-            }
-            return res.status(400).json({ success: false, message: "Deadline không được là ngày quá khứ" });
-        }
-        // 3. Tạo task mới
-        const newTask = new Task({
-            title,
-            description,
-            projectId,
-            deadline,
-            priority: priority || 'Medium',
-            status: 'To Do'
-        });
-        await newTask.save();
-        if (req.headers.accept && req.headers.accept.includes("text/html")) {
-            return res.redirect(`/api/projects/${projectId}/board?success=Tạo task thành công`);
-        }
-        res.status(201).json({ success: true, data: newTask });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-// UPDATE TASK STATUS (Phục vụ kéo thả hoặc đổi cột)
-exports.updateTaskStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-        const task = await Task.findByIdAndUpdate(id, { status }, { new: true });
-        res.json({ success: true, data: task });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // SHOW PROJECT BOARD
 exports.getProjectBoard = async (req, res) => {
-    try {
-        const projectId = req.params.id;
-        // 1. Lấy thông tin dự án
-        const project = await Project.findById(projectId)
-                .populate("owner", "fullname email avatar")
-                .populate("members.user", "fullname email avatar");
-        
-        if (!project || project.isDeleted) {
-              return res.redirect("/?error=" + encodeURIComponent("Dự án không tồn tại"));
-        }
+  try {
+    const projectId = req.params.id;
 
-        // 2. Lấy danh sách TaskList của dự án này
-        const taskLists = await TaskList.find({ projectId: projectId, isDeleted: false });
+    const project = await Project.findById(projectId)
+      .populate("owner", "fullname email avatar")
+      .populate("members.user", "fullname email avatar");
 
-        // 3. Lấy danh sách task của các list này
-        const listIds = taskLists.map(tl => tl._id);
-        const tasks = await Task.find({ listId: { $in: listIds }, isDeleted: { $ne: true } }).populate("listId", "title").populate("assignee", "fullname");
-
-        // 4. Render giao diện board
-        const currentUserId = req.user.id || req.user._id;
-        const isOwner = project.owner._id.toString() === currentUserId.toString();
-
-        res.render('client/project-board', { 
-            project, 
-            taskLists,
-            tasks, // Gửi nguyên mảng tasks
-            user: req.user,
-            isOwner,
-            success: req.query.success || null,
-            error: req.query.error || null
-        });
-    } catch (error) {
-        console.error(error);
-        return res.redirect("/?error=" + encodeURIComponent(error.message));
+    if (!project || project.isDeleted) {
+      return res.redirect("/?error=Dự án không tồn tại");
     }
+
+    const taskLists = await TaskList.find({
+      projectId: projectId,
+      isDeleted: false,
+    });
+
+    const listIds = taskLists.map((tl) => tl._id);
+
+    const tasks = await Task.find({
+      listId: { $in: listIds },
+      isDeleted: { $ne: true },
+    });
+
+    const currentUserId = req.user.id || req.user._id;
+
+    const isOwner = project.members.some(
+      (m) =>
+        m.user._id.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
+
+    res.render("client/project-board", {
+      project,
+      taskLists,
+      tasks,
+      user: req.user,
+      isOwner,
+      success: req.query.success || null,
+      error: req.query.error || null,
+    });
+  } catch (error) {
+    return res.redirect("/?error=" + encodeURIComponent(error.message));
+  }
 };
-//nhánh main (duy)
+
+
 // INVITE MEMBER
-// POST /api/projects/:id/invite
 exports.inviteMember = async (req, res) => {
   try {
     const { id } = req.params;
@@ -344,22 +251,19 @@ exports.inviteMember = async (req, res) => {
 
     const project = await Project.findById(id);
 
-    if (!project || project.isDeleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
 
-    // chỉ owner được mời
-    if (project.owner.toString() !== currentUserId.toString()) {
+    if (!isOwner) {
       return res.status(403).json({
         success: false,
         message: "Only owner can invite",
       });
     }
 
-    // tìm user theo email
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -369,10 +273,9 @@ exports.inviteMember = async (req, res) => {
       });
     }
 
-    // tránh add trùng
-    const alreadyMember =
-  project.owner.toString() === user._id.toString() ||
-  project.members.some((m) => m.user.toString() === user._id.toString());
+    const alreadyMember = project.members.some(
+      (m) => m.user.toString() === user._id.toString()
+    );
 
     if (alreadyMember) {
       return res.status(400).json({
@@ -382,12 +285,13 @@ exports.inviteMember = async (req, res) => {
     }
 
     project.members.push({
-            user: user._id,
-            role: "member",
-     });
+      user: user._id,
+      role: "member",
+    });
+
     await project.save();
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       message: "Invite successfully",
     });
@@ -398,6 +302,9 @@ exports.inviteMember = async (req, res) => {
     });
   }
 };
+
+
+// UPDATE MEMBER ROLE (MULTI OWNER)
 exports.updateMemberRole = async (req, res) => {
   try {
     const { id, memberId } = req.params;
@@ -406,14 +313,13 @@ exports.updateMemberRole = async (req, res) => {
 
     const project = await Project.findById(id);
 
-    if (!project || project.isDeleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
+    const isOwner = project.members.some(
+      (m) =>
+        m.user.toString() === currentUserId.toString() &&
+        m.role === "owner"
+    );
 
-    if (project.owner.toString() !== currentUserId.toString()) {
+    if (!isOwner) {
       return res.status(403).json({
         success: false,
         message: "Only owner can manage members",
@@ -427,53 +333,40 @@ exports.updateMemberRole = async (req, res) => {
     if (!targetMember) {
       return res.status(404).json({
         success: false,
-        message: "Member not found in project",
+        message: "Member not found",
       });
     }
 
     if (role === "delete") {
-      if (project.owner.toString() === memberId.toString()) {
+
+      if (targetMember.role === "owner") {
         return res.status(400).json({
           success: false,
-          message: "Không thể xóa owner khỏi project",
+          message: "Không thể xóa owner",
         });
       }
 
       project.members = project.members.filter(
         (m) => m.user.toString() !== memberId.toString()
       );
-    } else if (role === "owner") {
-      project.owner = memberId;
 
-      project.members.forEach((m) => {
-        if (m.user.toString() === memberId.toString()) {
-          m.role = "owner";
-        } else {
-          m.role = "member";
-        }
-      });
+    } else if (role === "owner") {
+
+      targetMember.role = "owner";
+
     } else if (role === "member") {
-      if (project.owner.toString() === memberId.toString()) {
-        return res.status(400).json({
-          success: false,
-          message: "Owner hiện tại không thể hạ xuống member ở đây. Hãy chuyển owner cho người khác trước.",
-        });
-      }
 
       targetMember.role = "member";
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: "Role không hợp lệ",
-      });
+
     }
 
     await project.save();
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       message: "Cập nhật quyền thành công",
     });
+
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -482,43 +375,20 @@ exports.updateMemberRole = async (req, res) => {
   }
 };
 
-// GET PROJECT MEMBERS
-// GET /api/projects/:id/members
+
+// GET MEMBERS
 exports.getProjectMembers = async (req, res) => {
   try {
     const { id } = req.params;
-    const currentUserId = req.user.id || req.user._id;
 
     const project = await Project.findById(id)
       .populate("members.user", "fullname email avatar");
 
-    if (!project || project.isDeleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
-    const isMember = project.members.some(m => m.user._id.toString() === currentUserId.toString());
-
-    if (!isMember) {
-      return res.status(403).json({
-        success: false,
-        message: "You do not have permission to view this project's members",
-      });
-    }
-
-    // Return members including owner
-    const members = project.members.map(m => ({
-        user: m.user,
-        role: m.role,
-        joinedAt: m.joinedAt,
-      }));
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: "Get project members successfully",
-      data: members,
+      data: project.members,
     });
+
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -526,4 +396,3 @@ exports.getProjectMembers = async (req, res) => {
     });
   }
 };
-
