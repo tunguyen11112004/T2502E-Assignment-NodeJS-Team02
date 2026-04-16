@@ -739,3 +739,53 @@ async function permanentDeleteTask(taskId) {
     alert("Lỗi khi xóa vĩnh viễn task");
   }
 }
+// ===============================
+// CLOSE MODAL WHEN CLICK OUTSIDE
+// ===============================
+document.addEventListener("click", function (e) {
+
+  const inviteModal = document.getElementById("inviteModal");
+  const taskModal = document.getElementById("taskModal");
+  const trashModal = document.getElementById("trashModal");
+  const dateModal = document.getElementById("datePickerModal");
+
+  function handleClose(modal, closeFn) {
+    if (!modal) return;
+
+    const content = modal.querySelector("div");
+    const isVisible = !modal.classList.contains("hidden");
+
+    if (
+      isVisible &&
+      content &&
+      !content.contains(e.target) &&
+      !e.target.closest("[onclick*='openInviteModal']") &&
+      !e.target.closest("[onclick*='openTrashModal']") &&
+      !e.target.closest("[onclick*='openDatePicker']")
+    ) {
+      closeFn();
+    }
+  }
+
+  handleClose(inviteModal, closeInviteModal);
+  handleClose(taskModal, closeModal);
+  handleClose(trashModal, closeTrashModal);
+  handleClose(dateModal, closeDatePicker);
+
+});
+
+document.addEventListener("click", function (e) {
+  const allDetails = document.querySelectorAll("details");
+
+  allDetails.forEach((detail) => {
+    const summary = detail.querySelector("summary");
+
+    if (summary && summary.contains(e.target)) {
+      return; // click vào button thì bỏ qua
+    }
+
+    if (!detail.contains(e.target)) {
+      detail.open = false;
+    }
+  });
+});

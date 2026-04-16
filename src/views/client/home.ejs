@@ -21,12 +21,12 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
   <% (projects || []).forEach(project => { %>
-    <%
-      const ownerId = project.owner && project.owner._id ? project.owner._id : project.owner;
-      const userId = user && user.id ? user.id : (user && user._id ? user._id : null);
-      const isOwner = String(ownerId) === String(userId);
-      const coverImage = project.coverImage || ('https://picsum.photos/seed/' + project._id + '/800/400');
-    %>
+<%
+  const userId = user && user.id ? user.id : (user && user._id ? user._id : null);
+  const isOwner = (project.members || []).some(m =>
+  String(m.user && m.user._id ? m.user._id : m.user) === String(userId) && m.role === "owner");
+  const coverImage = project.coverImage || ('https://picsum.photos/seed/' + project._id + '/800/400');
+%>
 
     <a
       href="/api/projects/<%= project._id %>/board"
