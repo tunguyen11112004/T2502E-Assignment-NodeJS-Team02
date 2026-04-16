@@ -3,130 +3,154 @@
     <nav class="flex text-sm text-gray-500 mb-2">
       <a href="/" class="hover:text-blue-600">Dự án</a>
       <span class="mx-2">/</span>
-      <span class="text-gray-800 font-medium"><%= project.title %></span>
+      <span class="text-gray-800 font-medium">
+        <%= project.title %>
+      </span>
     </nav>
 
-    <h1 class="text-3xl font-extrabold text-gray-900"><%= project.title %></h1>
+    <h1 class="text-3xl font-extrabold text-gray-900">
+      <%= project.title %>
+    </h1>
 
     <% if (project.description) { %>
-      <p class="text-sm text-gray-500 mt-2 max-w-2xl"><%= project.description %></p>
-    <% } %>
+      <p class="text-sm text-gray-500 mt-2 max-w-2xl">
+        <%= project.description %>
+      </p>
+      <% } %>
   </div>
 
   <div class="flex items-center gap-3 flex-wrap justify-end">
     <div class="flex -space-x-2">
-      <% (project.members || []).forEach(memberItem => { %>
-        <% const member = memberItem && memberItem.user ? memberItem.user : memberItem; %>
-        <img
-          src="<%= member.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(member.fullname || 'User')) %>"
-          class="h-8 w-8 rounded-full border-2 border-white object-cover"
-          title="<%= member.fullname %>"
-        >
-      <% }) %>
+      <% (project.members || []).forEach(memberItem=> { %>
+        <% const member=memberItem && memberItem.user ? memberItem.user : memberItem; %>
+          <img
+            src="<%= member.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(member.fullname || 'User')) %>"
+            class="h-8 w-8 rounded-full border-2 border-white object-cover" title="<%= member.fullname %>">
+          <% }) %>
     </div>
 
     <% if (isOwner) { %>
-      <button
-        type="button"
-        onclick="openInviteModal()"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md"
-      >
+      <button type="button" onclick="openInviteModal()"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md">
         Mời thành viên
       </button>
 
-      <button
-        type="button"
-        onclick="openTrashModal()"
-        class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-bold transition shadow-md"
-        title="Xem task đã xóa"
-      >
+      <div class="relative inline-block text-left">
+        <button onclick="toggleFilterMenu(event)"
+          class="p-2 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg shadow-sm flex items-center justify-center transition-all h-[38px] w-[38px]"
+          title="Lọc task">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </button>
+
+        <div id="filterMenu"
+          class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-[100] overflow-hidden">
+          <div class="p-3 border-b border-gray-50 bg-gray-50/50">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bộ lọc nâng cao</span>
+          </div>
+
+          <div class="py-1">
+            <a href="?member=<%= user._id || user.id %>"
+              class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+              <span class="mr-3 text-lg">👤</span> Việc của tôi
+            </a>
+
+            <div class="border-t border-gray-100 my-1"></div>
+            <div class="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase">Ngày hết hạn</div>
+
+            <a href="?due=none"
+              class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+              <span class="w-2 h-2 rounded-full bg-gray-300 mr-3"></span> Không có ngày hết hạn
+            </a>
+
+            <a href="?overdue=true"
+              class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+              <span class="w-2 h-2 rounded-full bg-red-500 mr-3"></span> Quá hạn
+            </a>
+
+            <a href="?due=tomorrow"
+              class="flex items-center px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors">
+              <span class="w-2 h-2 rounded-full bg-orange-400 mr-3"></span> Sẽ hết hạn vào ngày mai
+            </a>
+
+            <a href="?due=nextweek"
+              class="flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
+              <span class="w-2 h-2 rounded-full bg-blue-400 mr-3"></span> Sẽ hết hạn vào tuần sau
+            </a>
+
+            <a href="?due=nextmonth"
+              class="flex items-center px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
+              <span class="w-2 h-2 rounded-full bg-purple-400 mr-3"></span> Sẽ hết hạn vào tháng sau
+            </a>
+
+            <div class="border-t border-gray-100 mt-2"></div>
+            <a href="?"
+              class="flex items-center justify-center px-4 py-2.5 text-xs text-gray-400 hover:bg-gray-50 italic">
+              ✕ Xóa tất cả bộ lọc
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" onclick="openTrashModal()"
+        class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-bold transition shadow-md h-[38px]"
+        title="Xem task đã xóa">
         🗑️
       </button>
 
       <details class="relative">
-        <summary class="list-none bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm cursor-pointer">
+        <summary
+          class="list-none bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm cursor-pointer">
           Quản lý dự án
         </summary>
-
-        <div class="absolute top-full mt-2 right-0 bg-white p-4 rounded-xl shadow-xl border border-gray-200 z-20 min-w-[340px]">
+        <div
+          class="absolute top-full mt-2 right-0 bg-white p-4 rounded-xl shadow-xl border border-gray-200 z-20 min-w-[340px]">
           <form action="/api/projects/<%= project._id %>?_method=PATCH" method="POST" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tên project</label>
-              <input
-                type="text"
-                name="title"
-                value="<%= project.title %>"
-                required
-                class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <input type="text" name="title" value="<%= project.title %>" required
+                class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-              <textarea
-                name="description"
-                rows="3"
-                class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-              ><%= project.description || "" %></textarea>
+              <textarea name="description" rows="3"
+                class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><%= project.description || "" %></textarea>
             </div>
-
-            <button
-              type="submit"
-              class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-bold transition"
-            >
-              Cập nhật thông tin
-            </button>
+            <button type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-bold transition">Cập
+              nhật thông tin</button>
           </form>
-
-          <form
-            action="/api/projects/<%= project._id %>?_method=DELETE"
-            method="POST"
-            class="mt-3"
-            onsubmit="return confirm('Bạn có chắc muốn xóa project này?')"
-          >
-            <button
-              type="submit"
-              class="w-full border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-lg text-sm font-bold transition"
-            >
-              Xóa project
-            </button>
+          <form action="/api/projects/<%= project._id %>?_method=DELETE" method="POST" class="mt-3"
+            onsubmit="return confirm('Bạn có chắc muốn xóa project này?')">
+            <button type="submit"
+              class="w-full border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-lg text-sm font-bold transition">Xóa
+              project</button>
           </form>
         </div>
       </details>
 
       <details class="relative">
-        <summary class="list-none bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md cursor-pointer">
+        <summary
+          class="list-none bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-md cursor-pointer">
           Thêm danh sách khác
         </summary>
-
-        <div class="absolute top-full mt-2 right-0 bg-white p-4 rounded-lg shadow-lg border border-gray-200 z-10 min-w-[260px]">
+        <div
+          class="absolute top-full mt-2 right-0 bg-white p-4 rounded-lg shadow-lg border border-gray-200 z-10 min-w-[260px]">
           <form action="/api/tasklists/create" method="POST" class="space-y-3">
             <input type="hidden" name="projectId" value="<%= project._id %>">
-            <input
-              type="text"
-              name="title"
-              required
-              placeholder="Tên danh sách..."
-              class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
-            >
+            <input type="text" name="title" required placeholder="Tên danh sách..."
+              class="w-full p-3 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 shadow-inner">
             <div class="flex items-center gap-2">
-              <button
-                type="submit"
-                class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs hover:bg-blue-700 transition"
-              >
-                Lưu
-              </button>
-              <button
-                type="button"
-                onclick="this.closest('details').open = false"
-                class="text-gray-500 hover:text-gray-800 transition p-1"
-              >
-                Hủy
-              </button>
+              <button type="submit"
+                class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs hover:bg-blue-700 transition">Lưu</button>
+              <button type="button" onclick="this.closest('details').open = false"
+                class="text-gray-500 hover:text-gray-800 transition p-1">Hủy</button>
             </div>
           </form>
         </div>
       </details>
-    <% } %>
+      <% } %>
   </div>
 </div>
