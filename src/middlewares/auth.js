@@ -185,9 +185,48 @@ exports.checkTaskPermission = async (req, res, next) => {
       });
     }
 
-    req.project = project;
-    req.task = task;
-    return next();
+    const memberAllowedActions = [
+      "getTaskDetail",
+      "updateTaskContent",
+      "updateTaskDescription",
+      "createComment",
+      "updateComment",
+      "deleteComment",
+      "getComments",
+    ];
+
+    const path = req.route.path;
+    const method = req.method;
+    let action = "";
+
+    if (path === "/:id" && method === "GET") action = "getTaskDetail";
+    else if (path === "/:id/content" && method === "PUT") action = "updateTaskContent";
+    else if (path === "/:id/description" && method === "PUT") action = "updateTaskDescription";
+    else if (path === "/:taskId/comments" && method === "POST") action = "createComment";
+    else if (path === "/:taskId/comments/:commentId" && method === "PUT") action = "updateComment";
+    else if (path === "/:taskId/comments/:commentId" && method === "DELETE") action = "deleteComment";
+    else if (path === "/:taskId/comments" && method === "GET") action = "getComments";
+    else if (path === "/:id" && method === "DELETE") action = "deleteTask";
+    else if (path === "/:id/deadline" && method === "PUT") action = "updateDeadline";
+    else if (path === "/:id/restore" && method === "PATCH") action = "restoreTask";
+    else if (path === "/:id/permanent" && method === "DELETE") action = "permanentDeleteTask";
+    else if (path === "/:taskId/assignees" && method === "POST") action = "addAssignee";
+
+    if (isOwner) {
+      req.project = project;
+      req.task = task;
+      return next();
+    }
+
+    if (isMember && memberAllowedActions.includes(action)) {
+      req.project = project;
+      req.task = task;
+      return next();
+    }
+
+    // req.project = project;
+    // req.task = task;
+    // return next();
 
   } catch (error) {
     return res.status(500).json({

@@ -28,8 +28,7 @@ const commentController = {
         });
       }
 
-      const hasProjectContext =
-        task.listId && task.listId.projectId;
+      const hasProjectContext = task.listId && task.listId.projectId;
       if (!hasProjectContext) {
         return res.status(404).json({
           success: false,
@@ -112,12 +111,16 @@ const commentController = {
 
       const comment = await Comment.findById(commentId);
       if (!comment) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy bình luận" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy bình luận" });
       }
 
       const isAuthor = comment.user.toString() === userId.toString();
       if (!isAuthor) {
-        return res.status(403).json({ success: false, message: "Không có quyền sửa" });
+        return res
+          .status(403)
+          .json({ success: false, message: "Không có quyền sửa" });
       }
 
       comment.content = content;
@@ -134,35 +137,59 @@ const commentController = {
       const { commentId } = req.params;
       const userId = req.user.id || req.user._id;
 
+      // 1. Tìm bình luận
       const comment = await Comment.findById(commentId);
       if (!comment) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy bình luận" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy bình luận" });
       }
 
+      // 2. Tìm Task và Project để kiểm tra quyền Owner
       const task = await Task.findById(comment.task).populate({
         path: "listId",
         select: "projectId",
       });
-      if (!task) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy task" });
+
+      if (!task || !task.listId) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "Dữ liệu task hoặc project không hợp lệ",
+          });
       }
 
       const project = await Project.findById(task.listId.projectId);
       if (!project) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy project" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy project" });
       }
 
-      const isAuthor = comment.user.toString() === userId.toString();
-      const isProjectOwner = project.owner.toString() === userId.toString();
-      const canDelete = isAuthor || isProjectOwner;
+      // 3. Logic kiểm tra quyền Multi-Owner
+      const userIdStr = userId.toString();
+      const isAuthor = comment.user.toString() === userIdStr;
 
-      if (!canDelete) {
-        return res.status(403).json({ success: false, message: "Không có quyền xóa" });
+      // QUAN TRỌNG: Kiểm tra trong mảng members thay vì chỉ kiểm tra project.owner
+      const isProjectOwner = project.members.some(
+        (m) => m.user.toString() === userIdStr && m.role === "owner",
+      );
+
+      // Quyền xóa: Tác giả bình luận HOẶC bất kỳ ai có role 'owner' trong dự án
+      if (!isAuthor && !isProjectOwner) {
+        return res.status(403).json({
+          success: false,
+          message: "Bạn không có quyền xóa bình luận này",
+        });
       }
 
+      // 4. Thực hiện xóa
       await Comment.findByIdAndDelete(commentId);
 
-      return res.status(200).json({ success: true, message: "Đã xóa bình luận" });
+      return res
+        .status(200)
+        .json({ success: true, message: "Đã xóa bình luận thành công" });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

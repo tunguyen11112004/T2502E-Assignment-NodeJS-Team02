@@ -42,7 +42,7 @@
   ownerId
 }) %>
 
-<%- include('../partials/task-detail-modal') %>
+<%- include('../partials/task-detail-modal', { isOwner: isOwner }) %>
 <%- include('../partials/date-picker-modal') %>
 
 <!-- Trash Modal -->
@@ -108,119 +108,175 @@
 <script src="/js/project-board.js"></script>
 
 <script>
-
-// Backend variables
+// Biến toàn cục từ Backend
 const currentUserIdLocal = '<%= user && user._id ? user._id : (user && user.id ? user.id : "") %>';
-
 const projectOwnerIdLocal = '<%= project && project.owner && project.owner._id ? project.owner._id : (project && project.owner ? project.owner : "") %>';
 
 document.addEventListener('DOMContentLoaded', () => {
-
   const txtArea = document.getElementById('txtComment');
+  const btnComment = document.getElementById('btnComment');
+  const addListForm = document.getElementById('addListForm');
 
-  if (txtArea) {
+  // 1. Khởi tạo UI cho danh sách bình luận (Chỉ inject 1 lần)
+  if (txtArea && !document.getElementById('commentsList')) {
     const container = txtArea.closest('.space-y-4');
-
     if (container) {
-      container.insertAdjacentHTML(
-        'beforeend',
-        '<div id="commentsList" class="space-y-4 mt-6"></div>'
-      );
+      container.insertAdjacentHTML('beforeend', '<div id="commentsList" class="space-y-4 mt-6"></div>');
     }
   }
 
-  const addListForm = document.getElementById('addListForm');
-
+  // 2. Xử lý tạo Danh sách (Add List)
   if (addListForm) {
     addListForm.addEventListener('submit', async (e) => {
-
       e.preventDefault();
-
-      const form = e.target;
-
       const data = {
-        projectId: form.projectId.value,
-        title: form.title.value.trim()
+        projectId: e.target.projectId.value,
+        title: e.target.title.value.trim()
       };
-
       if (!data.title) return;
-
       try {
-
         const response = await fetch('/api/tasklists/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
-
-        if (response.ok) {
-          location.reload();
-        } else {
-          alert('Lỗi tạo danh sách');
-        }
-
+        if (response.ok) location.reload();
+        else alert('Lỗi tạo danh sách');
       } catch (error) {
-        alert('Lỗi tạo danh sách');
+        alert('Lỗi kết nối');
       }
-
     });
   }
 
-  const btnComment = document.getElementById('btnComment');
-
+  // 3. Xử lý gửi Bình luận (Chỉ gán 1 lần)
   if (btnComment && txtArea) {
-
     btnComment.addEventListener('click', async () => {
-
       const content = txtArea.value.trim();
-
-      if (content.length && window.myCurrentEditingTaskId) {
-
+      if (content && window.myCurrentEditingTaskId) {
         try {
-
-          const response = await fetch(
-            `/api/tasks/${window.myCurrentEditingTaskId}/comments`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content })
-            }
-          );
-
+          const response = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+          });
           if (response.ok) {
-
             txtArea.value = '';
             btnComment.disabled = true;
-
-            await loadComments(window.myCurrentEditingTaskId);
+            // Load lại danh sách sau khi thêm
+            await window.loadComments(window.myCurrentEditingTaskId);
           }
-
         } catch (error) {
           console.error('Lỗi thêm bình luận', error);
         }
-
       }
-
     });
-
   }
 
+  // 4. Gắn móc (Hook) vào hàm mở Task Detail để tự động load comment
   if (window.openTaskDetail) {
-
     const originalOpenTaskDetail = window.openTaskDetail;
-
     window.openTaskDetail = async function(taskId) {
-
       window.myCurrentEditingTaskId = taskId;
-
       await originalOpenTaskDetail(taskId);
-
-      await loadComments(taskId);
-
+      await window.loadComments(taskId);
     };
-
   }
-
 });
 
+// --- CÁC HÀM TIỆN ÍCH (Gắn vào window để gọi mọi nơi) ---
+
+window.loadComments = async function(taskId) {
+  const commentsList = document.getElementById('commentsList');
+  if (!commentsList) return;
+  
+  try {
+    const response = await fetch(`/api/tasks/${taskId}/comments`);
+    if (response.ok) {
+      const result = await response.json();
+      const comments = result.data || [];
+      
+      commentsList.innerHTML = comments.length > 0 
+        ? comments.map(comment => renderCommentItem(comment)).join('')
+        : '<p class="text-center text-gray-400 text-sm">Chưa có bình luận nào.</p>';
+    }
+  } catch (e) {
+    console.error('Lỗi tải bình luận', e);
+  }
+};
+
+function renderCommentItem(comment) {
+  const user = comment.user || comment.userId || {};
+  const name = user.fullname || 'Unknown';
+  const avatar = user.avatar || `https://ui-avatars.com/api/?name=${name}`;
+  const date = new Date(comment.createdAt).toLocaleString('vi-VN');
+  
+  // Ép kiểu ID về String để so sánh không bị lỗi
+  const commentUserId = String(user._id || user.id || '');
+  const currentId = String(currentUserIdLocal);
+  const ownerId = String(projectOwnerIdLocal);
+
+  // LOGIC KIỂM TRA QUYỀN
+  const isAuthor = currentId === commentUserId;
+  
+  // Kiểm tra nếu User hiện tại là Owner (Dựa trên biến data-is-owner từ thẻ div cha)
+  const isProjectOwner = document.getElementById('projectBoardPage').getAttribute('data-is-owner') === 'true';
+
+  return `
+    <div class="flex gap-4 items-start w-full mb-4">
+      <img src="${avatar}" class="w-9 h-9 rounded-full flex-shrink-0">
+      <div class="w-full flex-1">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-bold text-sm text-gray-900">${name}</span>
+          <span class="text-xs text-gray-500">${date}</span>
+        </div>
+        <div id="comment-view-${comment._id}" class="group relative">
+          <div class="bg-white border rounded-lg p-3 text-sm text-gray-800 shadow-sm">${comment.content}</div>
+          
+          <div class="flex gap-3 mt-1 opacity-0 group-hover:opacity-100 transition absolute top-2 right-2 bg-white/90 p-1 rounded border shadow-sm">
+            ${isAuthor ? `
+              <button onclick="editComment('${comment._id}')" class="text-xs text-blue-500 font-semibold hover:text-blue-700">Sửa</button>
+            ` : ''}
+            
+            ${(isAuthor || isProjectOwner) ? `
+              <button onclick="deleteComment('${comment._id}')" class="text-xs text-red-500 font-semibold hover:text-red-700">Xóa</button>
+            ` : ''}
+          </div>
+        </div>
+        
+        <div id="comment-edit-${comment._id}" class="hidden mt-1">
+          <textarea id="textarea-${comment._id}" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">${comment.content}</textarea>
+          <div class="flex justify-end gap-2 mt-1">
+            <button onclick="cancelEditComment('${comment._id}')" class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">Hủy</button>
+            <button onclick="saveEditComment('${comment._id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded">Lưu</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Các hàm Edit/Delete giữ nguyên logic window.editComment, window.saveEditComment như bạn đã gửi...
+window.editComment = (id) => {
+  document.getElementById(`comment-view-${id}`).classList.add('hidden');
+  document.getElementById(`comment-edit-${id}`).classList.remove('hidden');
+};
+window.cancelEditComment = (id) => {
+  document.getElementById(`comment-view-${id}`).classList.remove('hidden');
+  document.getElementById(`comment-edit-${id}`).classList.add('hidden');
+};
+window.saveEditComment = async (commentId) => {
+  const content = document.getElementById(`textarea-${commentId}`).value.trim();
+  if (!content) return;
+  const res = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments/${commentId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+  if (res.ok) await window.loadComments(window.myCurrentEditingTaskId);
+};
+window.deleteComment = async (commentId) => {
+  if (confirm('Xóa bình luận này?')) {
+    const res = await fetch(`/api/tasks/${window.myCurrentEditingTaskId}/comments/${commentId}`, { method: 'DELETE' });
+    if (res.ok) await window.loadComments(window.myCurrentEditingTaskId);
+  }
+};
 </script>
