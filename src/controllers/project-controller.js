@@ -115,10 +115,8 @@ exports.updateProject = async (req, res) => {
     const project = await Project.findById(id);
 
     if (!project || project.isDeleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
+      // Nếu không tìm thấy, quay về dashboard báo lỗi
+      return res.redirect("/?message=Dự án không tồn tại");
     }
 
     const isOwner = project.members.some(
@@ -128,31 +126,20 @@ exports.updateProject = async (req, res) => {
     );
 
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        message: "Only owner can update this project",
-      });
+      return res.redirect(`/?message=Chỉ chủ sở hữu mới có quyền sửa dự án`);
     }
 
-    if (title !== undefined) {
-      project.title = title.trim();
-    }
-
-    if (description !== undefined) {
-      project.description = description.trim();
-    }
+    if (title !== undefined) project.title = title.trim();
+    if (description !== undefined) project.description = description.trim();
 
     await project.save();
 
-    return res.status(200).json({
-      success: true,
-      data: project,
-    });
+    // Chuyển hướng về lại trang chi tiết dự án sau khi sửa xong
+    // Bạn có thể truyền thêm query parameter để hiển thị thông báo "Sửa thành công"
+    return res.redirect(`/api/projects/${id}/board?status=success&message=Cập nhật dự án thành công`);
+    
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.redirect(`/?message=Lỗi: ${error.message}`);
   }
 };
 
@@ -165,6 +152,8 @@ exports.deleteProject = async (req, res) => {
 
     const project = await Project.findById(id);
 
+    if (!project) return res.redirect("/?message=Dự án không tồn tại");
+
     const isOwner = project.members.some(
       (m) =>
         m.user.toString() === currentUserId.toString() &&
@@ -172,24 +161,18 @@ exports.deleteProject = async (req, res) => {
     );
 
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        message: "Only owner can delete project",
-      });
+      return res.redirect("/?message=Chỉ chủ sở hữu mới có quyền xóa dự án");
     }
 
+    // Soft delete
     project.isDeleted = true;
     await project.save();
 
-    return res.status(200).json({
-      success: true,
-      message: "Project deleted successfully",
-    });
+    // Xóa xong thì về trang chủ (nơi liệt kê các dự án)
+    return res.redirect("/?status=success&message=Xóa dự án thành công");
+    
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.redirect(`/?message=Lỗi xóa dự án: ${error.message}`);
   }
 };
 
