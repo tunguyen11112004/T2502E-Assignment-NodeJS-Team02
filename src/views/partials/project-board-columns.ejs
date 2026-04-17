@@ -3,7 +3,7 @@
     <% const colors = ['bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500']; %>
 
     <% taskLists.forEach((column, index) => { %>
-      <div class="w-80 flex-shrink-0 bg-gray-200 rounded-xl shadow-sm border border-gray-300 flex flex-col max-h-[80vh]">
+      <div class="w-80 flex-shrink-0 bg-gray-200 rounded-xl shadow-sm border border-gray-300 flex flex-col max-h-[80vh]" data-status="<%= column.title %>">
         <div class="p-4 flex justify-between items-center flex-shrink-0">
           <div class="flex items-center gap-2">
             <div class="w-2 h-6 <%= colors[index % colors.length] %> rounded-full"></div>

@@ -21,7 +21,7 @@ router.post(
 
 // Route cập nhật trạng thái (PUT) - Dùng cho kéo thả
 router.put(
-  "/update-status",
+  "/:id/update-status",
   verifyToken,
   checkTaskPermission,
   taskController.updateStatus,

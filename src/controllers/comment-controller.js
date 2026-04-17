@@ -7,78 +7,48 @@ const commentController = {
     try {
       const { taskId } = req.params;
       const { content } = req.body;
-      const userId = req.user?.id;
+
+      // Chỉ cần check xem người dùng đã đăng nhập chưa (có Token chưa)
+      const userId = req.user?._id || req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
           success: false,
-          message: "Unauthorized",
+          message: "Bạn cần đăng nhập để bình luận",
         });
       }
 
-      const task = await Task.findById(taskId).populate({
-        path: "listId",
-        select: "projectId",
-      });
-
-      if (!task) {
-        return res.status(404).json({
+      // Kiểm tra nội dung bình luận không được để trống
+      if (!content || content.trim() === "") {
+        return res.status(400).json({
           success: false,
-          message: "Không tìm thấy task",
+          message: "Nội dung bình luận không được để trống",
         });
       }
 
-      const hasProjectContext = task.listId && task.listId.projectId;
-      if (!hasProjectContext) {
-        return res.status(404).json({
-          success: false,
-          message: "Task không còn task list hợp lệ",
-        });
-      }
-
-      const projectId = task.listId.projectId;
-      const project = await Project.findById(projectId);
-
-      if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy project",
-        });
-      }
-
-      const userIdStr = userId.toString();
-      const isMember = project.members.some(
-        (memberId) => memberId.toString() === userIdStr,
-      );
-      const isProjectOwner = project.owner.toString() === userIdStr;
-      const canCreate = isMember || isProjectOwner;
-
-      if (!canCreate) {
-        return res.status(403).json({
-          success: false,
-          message: "Bạn không có quyền bình luận trong project này",
-        });
-      }
-
+      // 1. Tạo bình luận luôn, không cần check isMember hay isOwner nữa
       const comment = await Comment.create({
         task: taskId,
         user: userId,
-        content,
+        content: content.trim(),
       });
 
+      // 2. Populate để lấy thông tin người dùng (tên, avatar) hiển thị lên giao diện
       const populated = await Comment.findById(comment._id).populate(
         "user",
         "fullname avatar",
       );
 
+      // Trả về kết quả thành công
       return res.status(201).json({
         success: true,
         data: populated,
       });
     } catch (error) {
+      console.error("Lỗi tạo bình luận:", error);
       return res.status(500).json({
         success: false,
-        message: error.message,
+        message: "Lỗi Server: " + error.message,
       });
     }
   },
@@ -152,12 +122,10 @@ const commentController = {
       });
 
       if (!task || !task.listId) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "Dữ liệu task hoặc project không hợp lệ",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "Dữ liệu task hoặc project không hợp lệ",
+        });
       }
 
       const project = await Project.findById(task.listId.projectId);
