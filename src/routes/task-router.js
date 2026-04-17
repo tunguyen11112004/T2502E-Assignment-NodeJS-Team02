@@ -23,7 +23,7 @@ router.post(
 router.put(
   "/:id/update-status",
   verifyToken,
-  checkTaskPermission,
+  // checkTaskPermission,
   taskController.updateStatus,
 );
 
