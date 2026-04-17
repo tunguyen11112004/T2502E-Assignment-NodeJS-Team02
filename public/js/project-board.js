@@ -142,7 +142,7 @@ function initSortableLists() {
         if (!taskId || evt.from === evt.to) return;
 
         try {
-          await fetch("/api/tasks/update-status", {
+          await fetch(`/api/tasks/${taskId}/update-status`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ taskId, newStatus }),

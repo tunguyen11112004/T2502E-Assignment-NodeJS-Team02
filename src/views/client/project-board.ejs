@@ -86,6 +86,47 @@
         <script src="/js/project-board.js"></script>
 
         <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            // 1. Tìm tất cả các danh sách task (nơi chứa các thẻ card)
+            const taskLists = document.querySelectorAll('.task-list'); // Tú check lại class này trong EJS nhé
+
+            taskLists.forEach(list => {
+              new Sortable(list, {
+                group: 'shared-tasks', // Cho phép kéo thẻ từ cột này sang cột khác
+                animation: 150,
+                ghostClass: 'bg-blue-100', // Hiệu ứng khi đang kéo
+
+                // Sự kiện khi buông chuột (Kết thúc kéo)
+                // project-board.js
+                onEnd: async function (evt) {
+                  const taskId = evt.item.getAttribute('data-id');
+                  const targetColumn = evt.to.closest('.column-container');
+                  const newStatus = targetColumn ? targetColumn.getAttribute('data-status') : null;
+
+                  if (!taskId || !newStatus) return;
+
+                  // Đẩy taskId lên URL để Middleware checkTaskPermission đọc được
+                  const response = await fetch(`/api/tasks/${taskId}/update-status`, {
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ newStatus })
+                  });
+
+                  const data = await response.json();
+                  if (response.ok) {
+                    console.log("Cập nhật thành công");
+                  } else {
+                    alert(data.message);
+                    location.reload();
+                  }
+                }
+              });
+            });
+          });
+        </script>
+
+        <script>
           // Biến toàn cục từ Backend
           const currentUserIdLocal = '<%= user && user._id ? user._id : (user && user.id ? user.id : "") %>';
           const projectOwnerIdLocal = '<%= project && project.owner && project.owner._id ? project.owner._id : (project && project.owner ? project.owner : "") %>';
@@ -132,10 +173,15 @@
                 };
                 if (!data.title) return;
                 try {
-                  const response = await fetch('/api/tasklists/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                  const response = await fetch('/api/tasks/update-status', {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      taskId: taskId,       // Đảm bảo tên biến là taskId
+                      newStatus: newStatus  // Đảm bảo tên biến là newStatus (ví dụ: "DONE", "IN PROGRESS")
+                    })
                   });
                   if (response.ok) location.reload();
                   else alert('Lỗi tạo danh sách');
@@ -259,4 +305,78 @@
               if (res.ok) await window.loadComments(window.myCurrentEditingTaskId);
             }
           };
+        </script>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+          const socket = io();
+
+          // SỬA LỖI TRỐNG ID: Thử lấy cả _id và id, ép về String sạch
+          const rawUserId = '<%= user ? (user._id || user.id) : "" %>';
+          const currentUserId = String(rawUserId).trim();
+
+          const rawProjectId = '<%= project ? (project._id || project.id) : "" %>';
+          const currentProjectId = String(rawProjectId).trim();
+
+          // Kiểm tra ngay trên Console của Tú
+          console.log("--- SOCKET CHECK ---");
+          console.log("Dự án ID:", currentProjectId);
+          console.log("Người dùng ID:", currentUserId);
+
+          if (currentUserId) {
+            // Tham gia phòng
+            socket.emit('join-project', currentProjectId);
+            socket.emit('join-personal-room', currentUserId);
+
+            // 1. LẮNG NGHE THÔNG BÁO (HIỆN ALERT CHỐNG CHÁY)
+            socket.on('notification', (data) => {
+              console.log("✅ NHẬN ĐƯỢC TIN:", data);
+              alert("THÔNG BÁO MỚI: " + data.content);
+
+              // Hiện Toast sau khi bấm OK alert
+              const toast = document.getElementById('socket-toast');
+              const msg = document.getElementById('toast-message');
+              if (toast && msg) {
+                msg.innerText = data.content;
+                toast.classList.remove('hidden');
+                setTimeout(() => {
+                  toast.classList.remove('translate-y-20');
+                  toast.classList.add('translate-y-0');
+                }, 100);
+              }
+              location.reload();
+            });
+
+            // 2. CẬP NHẬT GIAO DIỆN (AVATAR)
+            socket.on('task-updated', () => {
+              console.log("Board đang cập nhật...");
+              // Chỉ reload nếu Tú không đang xem alert thông báo
+              location.reload();
+            });
+            socket.on('task-moved', (data) => {
+              console.log("✅ NHẬN ĐƯỢC TÍN HIỆU DI CHUYỂN:", data);
+
+              // Hiện thông báo cho Tú biết
+              alert("THÔNG BÁO: " + (data.message || "Thứ tự thẻ đã thay đổi"));
+
+              // Reload lại để cập nhật vị trí thẻ cho các thành viên khác
+              location.reload();
+            });
+            socket.on('task-created', (data) => {
+              console.log("Nhận tin tạo task:", data);
+
+              // CHẶN CHÍNH MÌNH: 
+              // Vì Tú dùng res.redirect nên máy Tú sẽ tự load lại trang rồi, 
+              // không cần cái alert này nữa.
+              if (data.senderId === currentUserId) {
+                return;
+              }
+
+              // Với người khác: Hiện thông báo và reload để thấy thẻ mới
+              alert("THÔNG BÁO: " + data.message);
+              location.reload();
+            });
+          } else {
+            console.error("LỖI: Không xác định được ID người dùng để kết nối Socket!");
+          }
         </script>

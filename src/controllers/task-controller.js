@@ -153,42 +153,80 @@ const taskController = {
   createTask: async (req, res) => {
     try {
       const { content, projectId, status } = req.body;
-      // Tìm hoặc tạo TaskList với title = status, projectId
+
       let taskList = await TaskList.findOne({ title: status, projectId });
       if (!taskList) {
         taskList = await TaskList.create({ title: status, projectId });
       }
+
       const newTask = new Task({
         title: content,
         listId: taskList._id,
       });
       await newTask.save();
+
+      
+      const io = req.app.get("io");
+      if (io) {
+        // Kiểm tra xem req.user có tồn tại không trước khi gọi toString()
+        const senderId =
+          req.user && req.user._id ? req.user._id.toString() : "anonymous";
+
+        console.log("--- DEBUG CREATE TASK ---");
+        console.log("Sender ID:", senderId);
+        console.log("Project ID:", projectId);
+
+        io.to(projectId).emit("task-created", {
+          message: "Một thẻ mới vừa được tạo!",
+          senderId: senderId,
+          projectId: projectId,
+        });
+      }
+
+      // Vì đây là Form POST truyền thống nên Tú dùng redirect là đúng rồi
       return res.redirect(`/api/projects/${projectId}/board`);
     } catch (error) {
       console.error("Lỗi Controller:", error);
       res.status(500).send("Lỗi tạo task");
     }
   },
+
+  // task-controller.js
   updateStatus: async (req, res) => {
     try {
-      const { taskId, newStatus } = req.body;
-      // Lấy task để biết projectId từ listId
+      const taskId = req.params.id; // Lấy ID từ URL (Param)
+      const { newStatus } = req.body; // Lấy Status từ Body
+
       const task = await Task.findById(taskId).populate("listId");
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      const projectId = task.listId.projectId;
-      // Tìm hoặc tạo TaskList với title = newStatus, projectId
+      if (!task) return res.status(404).json({ message: "Task not found" });
+
+      const projectId = task.listId.projectId.toString();
+
+      // ... Logic tìm TaskList và cập nhật vị trí ...
       let taskList = await TaskList.findOne({ title: newStatus, projectId });
       if (!taskList) {
         taskList = await TaskList.create({ title: newStatus, projectId });
       }
       await Task.findByIdAndUpdate(taskId, { listId: taskList._id });
-      res.status(200).json({ message: "Cập nhật trạng thái thành công" });
+
+      // ĐẨY SOCKET (Cái này là cái Tú cần nhất)
+      const io = req.app.get("io");
+      if (io) {
+        console.log("--- DEBUG SOCKET ---");
+        console.log("Phòng dự án:", projectId);
+        io.to(projectId).emit("notification", {
+          content: "Một thẻ vừa được di chuyển sang cột: " + newStatus,
+          projectId: projectId,
+          senderId: req.user._id,
+        });
+
+        console.log("✅ Đã phát tín hiệu notification tới phòng:", projectId);
+      }
     } catch (error) {
-      res.status(500).json({ message: "Lỗi server", error });
+      res.status(500).json({ message: "Lỗi server" });
     }
   },
+
   deleteTask: async (req, res) => {
     try {
       const { id } = req.params;
@@ -314,54 +352,54 @@ const taskController = {
       const currentUserId = req.user.id || req.user._id;
 
       const task = await Task.findById(taskId).populate("listId", "projectId");
-      if (!task) {
+      if (!task)
         return res
           .status(404)
           .json({ success: false, message: "Task not found" });
-      }
 
       const Project = require("../models/Project");
       const project = await Project.findById(task.listId.projectId);
 
-      if (!project || project.isDeleted) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Project not found" });
-      }
-
       if (project.owner.toString() !== currentUserId.toString()) {
         return res
           .status(403)
-          .json({ success: false, message: "Only owner can manage assignees" });
+          .json({ success: false, message: "Only owner can manage" });
       }
 
-      const User = require("../models/User");
-      const user = await User.findById(userId);
-      if (!user) {
-        return res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
+      const io = req.app.get("io");
+      const projectId = task.listId.projectId.toString();
+      let isAdding = false;
+
       if (task.assignee.includes(userId)) {
         task.assignee.pull(userId);
-        await task.save();
-        return res
-          .status(200)
-          .json({
-            success: true,
-            code: 201,
-            message: "Xóa assignee thành công",
-          });
+        isAdding = false;
+      } else {
+        task.assignee.push(userId);
+        isAdding = true;
       }
-      task.assignee.push(userId);
+
       await task.save();
-      return res
-        .status(200)
-        .json({
-          success: true,
-          code: 202,
-          message: "Thêm assignee thành công",
-        });
+
+      if (io) {
+        // Cập nhật giao diện chung (Avatar)
+        io.to(projectId).emit("task-updated");
+
+        // Gửi thông báo riêng biệt cho người nhận (nếu không phải chính mình)
+        if (userId.toString() !== currentUserId.toString()) {
+          const message = isAdding
+            ? `Bạn vừa được thêm vào task: ${task.title}`
+            : `Bạn đã được xóa khỏi task: ${task.title}`;
+
+          io.to(userId.toString()).emit("notification", { content: message });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: isAdding
+          ? "Bạn đã thêm thành viên thành công"
+          : "Bạn đã xóa thành viên thành công",
+      });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -400,13 +438,20 @@ const taskController = {
           .status(400)
           .json({ success: false, message: "User not assigned to this task" });
       }
+
       task.assignee.splice(index, 1);
       await task.save();
+
+      // Real-time: Báo cho cả Board cập nhật lại avatar thẻ
+      const io = req.app.get("io");
+      if (io) io.to(task.listId.projectId.toString()).emit("task-updated");
+
       res.status(200).json({ success: true, message: "Assignee removed" });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
   },
+
   getComments: async (req, res) => {
     try {
       const taskId = req.params.id;
@@ -456,12 +501,10 @@ const taskController = {
       }
 
       if (project.owner.toString() !== currentUserId.toString()) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            message: "Only owner can view deleted tasks",
-          });
+        return res.status(403).json({
+          success: false,
+          message: "Only owner can view deleted tasks",
+        });
       }
 
       // Find all task lists of the project
@@ -555,12 +598,10 @@ const taskController = {
       }
 
       if (project.owner.toString() !== currentUserId.toString()) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            message: "Only owner can permanently delete tasks",
-          });
+        return res.status(403).json({
+          success: false,
+          message: "Only owner can permanently delete tasks",
+        });
       }
 
       await Task.findByIdAndDelete(id);
