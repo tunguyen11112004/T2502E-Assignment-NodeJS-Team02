@@ -222,6 +222,10 @@ const taskController = {
 
         console.log("✅ Đã phát tín hiệu notification tới phòng:", projectId);
       }
+      return res.status(200).json({ 
+        success: true, 
+        message: "Cập nhật vị trí thành công" 
+      });
     } catch (error) {
       res.status(500).json({ message: "Lỗi server" });
     }
