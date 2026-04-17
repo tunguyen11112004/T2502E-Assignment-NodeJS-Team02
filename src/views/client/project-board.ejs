@@ -351,7 +351,7 @@
             socket.on('task-updated', () => {
               console.log("Board đang cập nhật...");
               // Chỉ reload nếu Tú không đang xem alert thông báo
-              location.reload();
+              // location.reload();
             });
             socket.on('task-moved', (data) => {
               console.log("✅ NHẬN ĐƯỢC TÍN HIỆU DI CHUYỂN:", data);
