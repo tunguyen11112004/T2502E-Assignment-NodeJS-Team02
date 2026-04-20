@@ -183,7 +183,7 @@ const taskController = {
         });
       }
 
-      // Vì đây là Form POST truyền thống nên Tú dùng redirect là đúng rồi
+      
       return res.redirect(`/api/projects/${projectId}/board`);
     } catch (error) {
       console.error("Lỗi Controller:", error);
@@ -209,7 +209,7 @@ const taskController = {
       }
       await Task.findByIdAndUpdate(taskId, { listId: taskList._id });
 
-      // ĐẨY SOCKET (Cái này là cái Tú cần nhất)
+      // ĐẨY SOCKET
       const io = req.app.get("io");
       if (io) {
         console.log("--- DEBUG SOCKET ---");

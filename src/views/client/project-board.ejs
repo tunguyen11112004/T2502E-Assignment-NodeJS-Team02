@@ -88,7 +88,7 @@
         <script>
           document.addEventListener('DOMContentLoaded', function () {
             // 1. Tìm tất cả các danh sách task (nơi chứa các thẻ card)
-            const taskLists = document.querySelectorAll('.task-list'); // Tú check lại class này trong EJS nhé
+            const taskLists = document.querySelectorAll('.task-list'); 
 
             taskLists.forEach(list => {
               new Sortable(list, {
@@ -318,7 +318,7 @@
           const rawProjectId = '<%= project ? (project._id || project.id) : "" %>';
           const currentProjectId = String(rawProjectId).trim();
 
-          // Kiểm tra ngay trên Console của Tú
+          // Kiểm tra ngay trên console để đảm bảo có ID trước khi kết nối Socket
           console.log("--- SOCKET CHECK ---");
           console.log("Dự án ID:", currentProjectId);
           console.log("Người dùng ID:", currentUserId);
@@ -350,24 +350,17 @@
             // 2. CẬP NHẬT GIAO DIỆN (AVATAR)
             socket.on('task-updated', () => {
               console.log("Board đang cập nhật...");
-              // Chỉ reload nếu Tú không đang xem alert thông báo
-              // location.reload();
             });
             socket.on('task-moved', (data) => {
               console.log("✅ NHẬN ĐƯỢC TÍN HIỆU DI CHUYỂN:", data);
 
-              // Hiện thông báo cho Tú biết
+              // Hiện thông báo
               alert("THÔNG BÁO: " + (data.message || "Thứ tự thẻ đã thay đổi"));
-
-              // Reload lại để cập nhật vị trí thẻ cho các thành viên khác
-              // location.reload();
             });
             socket.on('task-created', (data) => {
               console.log("Nhận tin tạo task:", data);
 
-              // CHẶN CHÍNH MÌNH: 
-              // Vì Tú dùng res.redirect nên máy Tú sẽ tự load lại trang rồi, 
-              // không cần cái alert này nữa.
+              // CHẶN CHÍNH MÌNH:
               if (data.senderId === currentUserId) {
                 return;
               }
