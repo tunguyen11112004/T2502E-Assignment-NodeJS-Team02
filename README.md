@@ -2,6 +2,8 @@
 
 Welcome to the Task Management System (Project Board) developed by Team 02. Đây là dự án quản lý công việc và dự án áp dụng các công nghệ Node.js, Express, MongoDB và giao diện EJS trực quan theo mô hình Server-Side Rendering (SSR).
 
+## Link video demo: https://drive.google.com/drive/folders/152Yh6Ghn7p1N5-706nfNFVcU7Uglancx?usp=sharing
+
 ##  Công nghệ sử dụng
 
 Dự án 3.1 được xây dựng bằng những thư viện và công nghệ sau:
