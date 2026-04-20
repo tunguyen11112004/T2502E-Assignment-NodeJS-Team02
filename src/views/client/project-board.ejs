@@ -360,7 +360,7 @@
               alert("THÔNG BÁO: " + (data.message || "Thứ tự thẻ đã thay đổi"));
 
               // Reload lại để cập nhật vị trí thẻ cho các thành viên khác
-              location.reload();
+              // location.reload();
             });
             socket.on('task-created', (data) => {
               console.log("Nhận tin tạo task:", data);
@@ -374,7 +374,7 @@
 
               // Với người khác: Hiện thông báo và reload để thấy thẻ mới
               alert("THÔNG BÁO: " + data.message);
-              location.reload();
+              // location.reload();
             });
           } else {
             console.error("LỖI: Không xác định được ID người dùng để kết nối Socket!");
